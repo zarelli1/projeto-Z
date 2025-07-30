@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DashBot SocialZap - Análise NPS</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <i class="fas fa-glasses"></i>
+                <h1>SOCIALZAP</h1>
+            </div>
+            <p class="subtitle">Analista de Dash - Qualquer Planilha</p>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="form-container">
+                <div class="input-group">
+                    <label for="loja-nome">Nome do Projeto/Empresa</label>
+                    <input 
+                        type="text" 
+                        id="loja-nome" 
+                        placeholder="Ex: Minha Empresa, Projeto X, Análise 2025..."
+                        value="Análise Dash"
+                    >
+                    <small>Será usado como título do relatório</small>
+                </div>
+                
+                <div class="input-group">
+                    <label for="sheets-url">URL do Google Sheets</label>
+                    <input 
+                        type="url" 
+                        id="sheets-url" 
+                        placeholder="https://docs.google.com/spreadsheets/d/..."
+                        required
+                    >
+                    <div class="error-message" id="error-message"></div>
+                    <small>🎯 Sistema adaptativo: reconhece qualquer estrutura de planilha automaticamente</small>
+                </div>
+
+
+                <button class="analyze-btn" id="analyze-btn">
+                    <i class="fas fa-chart-line"></i>
+                    Analisar Seu Dashboard
+                </button>
+                
+                <div class="features-info">
+                    <p><strong>🧠 Analista de Dash:</strong> Detecta automaticamente o tipo de dados e negócio</p>
+                    <p><strong>🎯 Sistema adaptativo:</strong> Funciona com qualquer estrutura de planilha</p>
+                    <p><strong>📊 Fallbacks inteligentes:</strong> Reconhece padrões em português e inglês</p>
+                    <p><strong>📄 Relatório inteligente:</strong> PDF profissional com WeasyPrint</p>
+                </div>
+            </div>
+
+            <!-- Loading State -->
+            <div class="loading-container" id="loading-container" style="display: none;">
+                <div class="spinner"></div>
+                <p>Analisando dados de pós-venda...</p>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <p class="progress-text" id="progress-text">Conectando com Google Sheets...</p>
+                <div class="loading-details" id="loading-details">
+                    <small>Aguarde... O Analista de Dash pode levar até 2 minutos.</small>
+                </div>
+            </div>
+
+            <!-- Results -->
+            <div class="results-container" id="results-container" style="display: none;">
+                <div class="success-card">
+                    <i class="fas fa-check-circle"></i>
+                    <h3>Análise Concluída!</h3>
+                    <div class="metrics">
+                        <div class="metric">
+                            <span class="metric-value" id="nps-score">0</span>
+                            <span class="metric-label">NPS Geral</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-value" id="total-responses">0</span>
+                            <span class="metric-label">Feedbacks</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-value" id="avg-rating">0.0</span>
+                            <span class="metric-label">Satisfação</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-value" id="vendedores">0</span>
+                            <span class="metric-label">Vendedores</span>
+                        </div>
+                    </div>
+                    
+                    <div class="download-buttons">
+                        <button class="download-btn pdf-btn" id="download-pdf">
+                            <i class="fas fa-file-pdf"></i>
+                            Baixar PDF
+                        </button>
+                        <button class="download-btn excel-btn" id="download-excel">
+                            <i class="fas fa-file-excel"></i>
+                            Baixar Excel
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Multi-Sheet Results -->
+            <div class="multi-results-container" id="multi-results-container" style="display: none;">
+                <div class="success-card">
+                    <i class="fas fa-check-circle"></i>
+                    <h3>Dashboard Executivo Concluído!</h3>
+                    <div class="metrics">
+                        <div class="metric">
+                            <span class="metric-value" id="multi-total-sheets">0</span>
+                            <span class="metric-label">Relatórios Gerados</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-value" id="multi-total-records">0</span>
+                            <span class="metric-label">Avaliações Analisadas</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-value" id="multi-avg-nps">0</span>
+                            <span class="metric-label">Score NPS</span>
+                        </div>
+                    </div>
+                    
+                    <div class="sheet-results" id="sheet-results">
+                        <!-- Resultado do relatório executivo será inserido aqui -->
+                    </div>
+                    
+                    <div class="download-buttons">
+                        <button class="download-btn pdf-btn" id="download-all-pdfs">
+                            <i class="fas fa-file-pdf"></i>
+                            Baixar Relatório
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Powered by DashBot • Automação Inteligente</p>
+        </footer>
+    </div>
+
+    <script src="api.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
