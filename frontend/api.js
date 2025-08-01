@@ -4,12 +4,17 @@ class DashBotAPI {
         this.baseUrl = 'http://localhost:8080';
     }
 
-    // Analisar dados - Analista de Dash GPT-4o
-    async analyzeNPS(sheetsUrl, lojaName = 'Análise Dash', estiloPdf = 'mdo_weasy') {
+    // Analisar dados - Analista de Dash GPT-4o (COM FILTRO POR DATA)
+    async analyzeNPS(sheetsUrl, lojaName = 'Análise Dash', estiloPdf = 'mdo_weasy', dataInicio = null, dataFim = null) {
         try {
             console.log('📡 Iniciando análise com Analista de Dash...');
             console.log('🔗 URL:', sheetsUrl);
             console.log('🏢 Projeto:', lojaName);
+            
+            // Log do filtro por data se ativo
+            if (dataInicio || dataFim) {
+                console.log('📅 Filtro por data:', { dataInicio, dataFim });
+            }
             
             // Timeout otimizado para análise IA (3 minutos)
             const controller = new AbortController();
@@ -17,16 +22,23 @@ class DashBotAPI {
             
             const startTime = Date.now();
             
+            // Preparar payload com filtro por data
+            const payload = {
+                sheets_url: sheetsUrl,
+                loja_nome: lojaName,
+                estilo_pdf: estiloPdf
+            };
+            
+            // Adicionar filtros por data se especificados
+            if (dataInicio) payload.data_inicio = dataInicio;
+            if (dataFim) payload.data_fim = dataFim;
+            
             const response = await fetch(`${this.baseUrl}/api/analyze`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    sheets_url: sheetsUrl,
-                    loja_nome: lojaName,
-                    estilo_pdf: estiloPdf
-                }),
+                body: JSON.stringify(payload),
                 signal: controller.signal
             });
 

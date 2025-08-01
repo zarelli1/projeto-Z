@@ -220,10 +220,20 @@ def handle_sheets_url():
     sheets_url = data.get('sheets_url', '')
     loja_nome = data.get('loja_nome', 'Análise Universal')
     estilo_pdf = data.get('estilo_pdf', 'mdo_weasy')  # Novo parâmetro
+    data_inicio = data.get('data_inicio')  # NOVO: Filtro por data início
+    data_fim = data.get('data_fim')  # NOVO: Filtro por data fim
     
     print(f"🔗 URL: {sheets_url}")
     print(f"🏢 Projeto: {loja_nome}")
     print(f"🎨 Estilo PDF: {estilo_pdf}")
+    
+    # Exibe informações sobre filtro por data se aplicável
+    if data_inicio or data_fim:
+        print("📅 Filtro por data solicitado:")
+        if data_inicio:
+            print(f"   📅 Data início: {data_inicio}")
+        if data_fim:
+            print(f"   📅 Data fim: {data_fim}")
     
     if not sheets_url:
         return {
@@ -231,10 +241,10 @@ def handle_sheets_url():
             'error': 'URL da planilha é obrigatória'
         }
     
-    # Executa análise original
-    return run_analysis(sheets_url, loja_nome, estilo_pdf)
+    # Executa análise original com filtro por data
+    return run_analysis(sheets_url, loja_nome, estilo_pdf, data_inicio, data_fim)
 
-def run_analysis(sheets_url, loja_nome, estilo_pdf='mdo_weasy'):
+def run_analysis(sheets_url, loja_nome, estilo_pdf='mdo_weasy', data_inicio=None, data_fim=None):
     """Executa análise e gera PDF MDO com emojis reais"""
     try:
         print(f"📊 INICIANDO ANÁLISE MDO para: {loja_nome}")
@@ -245,7 +255,7 @@ def run_analysis(sheets_url, loja_nome, estilo_pdf='mdo_weasy'):
         from gerador_pdf import GeradorPDFCustomizado
         from adaptador_dados import AdaptadorDados
         
-        # 1. EXTRAÇÃO COM NOVO SISTEMA IA
+        # 1. EXTRAÇÃO COM NOVO SISTEMA IA (COM FILTRO POR DATA)
         print("🔍 PASSO 1: Extraindo dados com IA avançada...")
         analisador_completo = AnalisadorNPSCompleto(loja_nome)
         
@@ -258,9 +268,14 @@ def run_analysis(sheets_url, loja_nome, estilo_pdf='mdo_weasy'):
         # Padroniza dados automaticamente
         analisador_completo._padronizar_todos_dados()
         
+        # Aplica filtro por data se especificado
+        if data_inicio or data_fim:
+            print("📅 Aplicando filtro por data...")
+            analisador_completo._aplicar_filtro_data(data_inicio, data_fim)
+        
         # Converte para formato compatível
         adaptador = AdaptadorDados()
-        dados_segmentados = adaptador.converter_para_formato_antigo(analisador_completo.dados_abas)
+        dados_segmentados = adaptador.converter_para_formato_antigo(analisador_completo.dados_abas, data_inicio, data_fim)
         
         if not dados_segmentados or dados_segmentados.get('todos') is None or len(dados_segmentados.get('todos', [])) == 0:
             return {

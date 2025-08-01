@@ -12,6 +12,12 @@ const elements = {
     downloadPdf: document.getElementById('download-pdf'),
     downloadExcel: document.getElementById('download-excel'),
     
+    // NOVO: Elementos do filtro por data
+    enableDateFilter: document.getElementById('enable-date-filter'),
+    dateFilterInputs: document.getElementById('date-filter-inputs'),
+    dataInicio: document.getElementById('data-inicio'),
+    dataFim: document.getElementById('data-fim'),
+    
     // Métricas
     npsScore: document.getElementById('nps-score'),
     totalResponses: document.getElementById('total-responses'),
@@ -147,7 +153,7 @@ function showRealResults(metrics) {
 function resetAnalyzeButton() {
     isProcessing = false;
     elements.analyzeBtn.disabled = false;
-    elements.analyzeBtn.innerHTML = '<i class="fas fa-chart-line"></i> Analisar Pós-Venda';
+    elements.analyzeBtn.innerHTML = '<i class="fas fa-robot"></i> Analisar com DashBot';
 }
 
 // Processar análise - Otimizado e sincronizado
@@ -155,6 +161,23 @@ async function processAnalysis() {
     const url = elements.sheetsUrl.value.trim();
     const loja = elements.lojaNome.value.trim() || 'SocialZap';
     const estilo = 'mdo_weasy'; // Fixo no estilo MDO com emojis reais
+    
+    // NOVO: Coletar dados do filtro por data
+    let dataInicio = null;
+    let dataFim = null;
+    
+    if (elements.enableDateFilter.checked) {
+        dataInicio = elements.dataInicio.value || null;
+        dataFim = elements.dataFim.value || null;
+        
+        // Validação do filtro por data
+        if (dataInicio && dataFim && new Date(dataInicio) > new Date(dataFim)) {
+            showError('Data de início deve ser anterior à data de fim');
+            return;
+        }
+        
+        console.log('📅 Filtro por data ativado:', { dataInicio, dataFim });
+    }
     
     // Validação rápida
     if (!url) {
@@ -190,8 +213,8 @@ async function processAnalysis() {
         // Iniciar progress tracking
         startProgressTracking();
         
-        // Executar análise real do backend
-        const result = await dashBotAPI.analyzeNPS(url, loja, estilo);
+        // Executar análise real do backend (COM FILTRO POR DATA)
+        const result = await dashBotAPI.analyzeNPS(url, loja, estilo, dataInicio, dataFim);
         
         if (result.success) {
             // Sempre usar resultado único com relatório executivo simples
@@ -311,6 +334,29 @@ function initializeEventListeners() {
     elements.analyzeBtn.addEventListener('click', processAnalysis);
     elements.downloadPdf.addEventListener('click', downloadPdfReport);
     elements.downloadExcel.addEventListener('click', downloadExcelReport);
+
+    // NOVO: Event listener para checkbox do filtro por data com animação suave
+    elements.enableDateFilter.addEventListener('change', function() {
+        if (this.checked) {
+            // Mostra os campos com animação suave
+            elements.dateFilterInputs.style.display = 'block';
+            // Força um reflow para que a animação CSS funcione
+            elements.dateFilterInputs.offsetHeight;
+            elements.dateFilterInputs.style.opacity = '1';
+            elements.dateFilterInputs.style.maxHeight = '200px';
+            console.log('📅 Filtro por data ativado');
+        } else {
+            // Esconde os campos com animação suave
+            elements.dateFilterInputs.style.opacity = '0';
+            elements.dateFilterInputs.style.maxHeight = '0';
+            setTimeout(() => {
+                elements.dateFilterInputs.style.display = 'none';
+            }, 400);
+            elements.dataInicio.value = '';
+            elements.dataFim.value = '';
+            console.log('📅 Filtro por data desativado');
+        }
+    });
 
     // Validação em tempo real otimizada
     elements.sheetsUrl.addEventListener('input', debounce(function() {

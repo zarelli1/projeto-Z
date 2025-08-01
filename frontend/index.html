@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DashBot SocialZap - Análise NPS</title>
+    <title>DashBot - Análise NPS Inteligente</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
@@ -12,10 +12,10 @@
         <!-- Header -->
         <header class="header">
             <div class="logo">
-                <i class="fas fa-glasses"></i>
-                <h1>SOCIALZAP</h1>
+                <i class="fas fa-chart-line"></i>
+                <h1>DASHBOT</h1>
             </div>
-            <p class="subtitle">Analista de Dash - Qualquer Planilha</p>
+            <p class="subtitle">🚀 Análise NPS Inteligente</p>
         </header>
 
         <!-- Main Content -->
@@ -44,17 +44,48 @@
                     <small>🎯 Sistema adaptativo: reconhece qualquer estrutura de planilha automaticamente</small>
                 </div>
 
+                <!-- NOVO: Filtro por Data -->
+                <div class="input-group date-filter-group">
+                    <div class="date-filter-header">
+                        <label>
+                            <input type="checkbox" id="enable-date-filter">
+                            📅 Filtrar por período de data
+                        </label>
+                    </div>
+                    
+                    <div class="date-filter-inputs" id="date-filter-inputs" style="display: none;">
+                        <div class="date-input-group">
+                            <label for="data-inicio">Data Início</label>
+                            <input 
+                                type="date" 
+                                id="data-inicio" 
+                                placeholder="DD/MM/AAAA"
+                            >
+                        </div>
+                        <div class="date-input-group">
+                            <label for="data-fim">Data Fim</label>
+                            <input 
+                                type="date" 
+                                id="data-fim" 
+                                placeholder="DD/MM/AAAA"
+                            >
+                        </div>
+                    </div>
+                    <small>🔍 Analise apenas dados de um período específico</small>
+                </div>
+
 
                 <button class="analyze-btn" id="analyze-btn">
-                    <i class="fas fa-chart-line"></i>
-                    Analisar Seu Dashboard
+                    <i class="fas fa-robot"></i>
+                    Analisar com DashBot
                 </button>
                 
                 <div class="features-info">
-                    <p><strong>🧠 Analista de Dash:</strong> Detecta automaticamente o tipo de dados e negócio</p>
-                    <p><strong>🎯 Sistema adaptativo:</strong> Funciona com qualquer estrutura de planilha</p>
-                    <p><strong>📊 Fallbacks inteligentes:</strong> Reconhece padrões em português e inglês</p>
-                    <p><strong>📄 Relatório inteligente:</strong> PDF profissional com WeasyPrint</p>
+                    <p><strong>🤖 DashBot IA:</strong> Detecta automaticamente o tipo de dados e negócio</p>
+                    <p><strong>📅 Filtro por Data:</strong> Analise períodos específicos com precisão</p>
+                    <p><strong>🎯 Sistema Adaptativo:</strong> Funciona com qualquer estrutura de planilha</p>
+                    <p><strong>📊 Fallbacks Inteligentes:</strong> Reconhece padrões em português e inglês</p>
+                    <p><strong>📄 Relatório Premium:</strong> PDF profissional com WeasyPrint e emojis</p>
                 </div>
             </div>
 
@@ -144,7 +175,7 @@
 
         <!-- Footer -->
         <footer class="footer">
-            <p>Powered by DashBot • Automação Inteligente</p>
+            <p>🤖 Powered by DashBot • Análise NPS Inteligente com IA 🚀</p>
         </footer>
     </div>
 

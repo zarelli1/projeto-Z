@@ -12,6 +12,7 @@ import io
 from datetime import datetime
 import unicodedata
 import openai
+import os
 
 
 class AnalisadorNPSCompleto:
@@ -22,9 +23,13 @@ class AnalisadorNPSCompleto:
         self.dados_abas = {}
         self.metricas_calculadas = {}
         self.gids_customizados = gids_customizados or []  # Lista de GIDs personalizados
-        self.openai_client = openai.OpenAI(
-            api_key="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"
-        )
+        # Configuração da API OpenAI
+        api_key = os.getenv('OPENAI_API_KEY')
+        if not api_key:
+            print("⚠️ OPENAI_API_KEY não configurada - análise IA será desabilitada")
+            self.openai_client = None
+        else:
+            self.openai_client = openai.OpenAI(api_key=api_key)
     
     def adicionar_gids(self, *gids):
         """Adiciona GIDs específicos à lista de busca"""
@@ -44,14 +49,29 @@ class AnalisadorNPSCompleto:
         self.gids_customizados = []
         print("✅ GIDs customizados removidos - usando busca padrão")
         
-    def analisar_planilha(self, url_planilha):
+    def analisar_planilha(self, url_planilha, data_inicio=None, data_fim=None):
         """
         Análise completa da planilha NPS
         Retorna resumo estruturado em texto
+        
+        Args:
+            url_planilha: URL da planilha Google Sheets
+            data_inicio: data de início do filtro (formato YYYY-MM-DD ou datetime)
+            data_fim: data de fim do filtro (formato YYYY-MM-DD ou datetime)
         """
         try:
             print("🚀 Iniciando análise completa NPS...")
             print(f"📍 Loja: {self.nome_loja}")
+            
+            # Exibe informações sobre filtro por data se aplicável
+            if data_inicio or data_fim:
+                print(f"📅 Filtro por data ativo:")
+                if data_inicio:
+                    data_inicio_str = data_inicio.strftime('%d/%m/%Y') if hasattr(data_inicio, 'strftime') else data_inicio
+                    print(f"   📅 Data início: {data_inicio_str}")
+                if data_fim:
+                    data_fim_str = data_fim.strftime('%d/%m/%Y') if hasattr(data_fim, 'strftime') else data_fim  
+                    print(f"   📅 Data fim: {data_fim_str}")
             
             # ETAPA 1: Extração automática das abas
             print("\n📥 ETAPA 1: Extração das Abas")
@@ -61,6 +81,11 @@ class AnalisadorNPSCompleto:
             # ETAPA 2: Padronização dos dados
             print("\n🔧 ETAPA 2: Padronização dos Dados")
             self._padronizar_todos_dados()
+            
+            # ETAPA 2.5: Aplicação do filtro por data (NOVA ETAPA)
+            if data_inicio or data_fim:
+                print("\n📅 ETAPA 2.5: Aplicação do Filtro por Data")
+                self._aplicar_filtro_data(data_inicio, data_fim)
             
             # ETAPA 3: Cálculo das métricas NPS
             print("\n📊 ETAPA 3: Cálculo das Métricas NPS")
@@ -72,13 +97,49 @@ class AnalisadorNPSCompleto:
             
             # ETAPA 5: Geração do resumo final
             print("\n📋 ETAPA 5: Geração do Resumo")
-            resumo = self._gerar_resumo_completo(insights_ia)
+            resumo = self._gerar_resumo_completo(insights_ia, data_inicio, data_fim)
             
             print("✅ Análise concluída com sucesso!")
             return resumo
             
         except Exception as e:
             return f"❌ Erro na análise: {str(e)}"
+    
+    def _aplicar_filtro_data(self, data_inicio=None, data_fim=None):
+        """Aplica filtro por data em todas as abas extraídas"""
+        try:
+            from adaptador_dados import AdaptadorDados
+            adaptador = AdaptadorDados()
+            
+            dados_filtrados = {}
+            total_original = 0
+            total_filtrado = 0
+            
+            for tipo_aba, df in self.dados_abas.items():
+                if df is not None and len(df) > 0:
+                    total_original += len(df)
+                    
+                    # Aplica filtro usando o método do adaptador
+                    df_filtrado = adaptador._filtrar_por_data(df, data_inicio, data_fim)
+                    
+                    if df_filtrado is not None and len(df_filtrado) > 0:
+                        dados_filtrados[tipo_aba] = df_filtrado
+                        total_filtrado += len(df_filtrado)
+                        print(f"✅ {tipo_aba}: {len(df)} → {len(df_filtrado)} registros")
+                    else:
+                        print(f"⚠️ {tipo_aba}: Nenhum registro encontrado no período")
+            
+            # Atualiza os dados com versão filtrada
+            self.dados_abas = dados_filtrados
+            
+            print(f"📊 Resumo do filtro:")
+            print(f"   📊 Total original: {total_original} registros")
+            print(f"   📊 Total filtrado: {total_filtrado} registros")
+            print(f"   📊 Redução: {((total_original - total_filtrado) / total_original * 100):.1f}%" if total_original > 0 else "   📊 Redução: 0%")
+            
+        except Exception as e:
+            print(f"⚠️ Erro ao aplicar filtro por data: {str(e)}")
+            print("   🔄 Continuando com dados originais...")
     
     def _extrair_abas_automaticamente(self, url):
         """Sistema multi-estratégia para descobrir abas de qualquer planilha"""
@@ -533,13 +594,23 @@ class AnalisadorNPSCompleto:
         except Exception as e:
             return {'erro': f'Erro na análise de casos críticos: {str(e)}'}
     
-    def _gerar_resumo_completo(self, insights_ia):
+    def _gerar_resumo_completo(self, insights_ia, data_inicio=None, data_fim=None):
         """Gera resumo final estruturado com insights IA"""
         try:
             resumo = f"""
 📅 Data da Análise: {datetime.now().strftime('%d/%m/%Y às %H:%M')}
-
 """
+            
+            # Adiciona informações sobre filtro por data se aplicável
+            if data_inicio or data_fim:
+                resumo += "🔍 Filtro por Data Aplicado:\n"
+                if data_inicio:
+                    data_inicio_str = data_inicio.strftime('%d/%m/%Y') if hasattr(data_inicio, 'strftime') else data_inicio
+                    resumo += f"   📅 Data início: {data_inicio_str}\n"
+                if data_fim:
+                    data_fim_str = data_fim.strftime('%d/%m/%Y') if hasattr(data_fim, 'strftime') else data_fim
+                    resumo += f"   📅 Data fim: {data_fim_str}\n"
+                resumo += "\n"
             
             # Resumo das métricas NPS D+1 e D+30
             resumo += self._gerar_secao_metricas_nps()
