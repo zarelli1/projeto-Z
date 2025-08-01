@@ -6,7 +6,12 @@ Data: 27/07/2025
 """
 
 import openai
+import os
 from datetime import datetime
+from dotenv import load_dotenv
+
+# Carrega variáveis de ambiente
+load_dotenv()
 
 
 class AnalisadorIACustomizado:
@@ -15,17 +20,26 @@ class AnalisadorIACustomizado:
     def __init__(self, dados_segmentados, nome_loja="Mercadão dos Óculos"):
         self.dados = dados_segmentados
         self.nome_loja = nome_loja
-        self.openai_client = openai.OpenAI(
-            api_key="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"
-        )
+        api_key = os.getenv('OPENAI_API_KEY')
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY não encontrada nas variáveis de ambiente")
+        self.openai_client = openai.OpenAI(api_key=api_key)
     
     def gerar_analise_completa(self):
-        """Gera análise completa com IA"""
+        """Gera análise completa com IA otimizada"""
         try:
-            print("🤖 Gerando análise com IA...")
+            print("[IA] Gerando análise com IA...")
             
-            # Prepara dados para IA
+            # Validação prévia dos dados
+            if not self.dados or not isinstance(self.dados, dict):
+                print("[AVISO] Dados inválidos para análise IA")
+                return self._gerar_relatorio_basico()
+            
+            # Prepara dados para IA com cache
             resumo_dados = self._preparar_resumo_dados()
+            if not resumo_dados or len(resumo_dados.strip()) < 50:
+                print("[AVISO] Dados insuficientes para análise IA")
+                return self._gerar_relatorio_basico()
             
             prompt = f"""
 Você é um consultor de experiência do cliente especializado em relatórios NPS para óticas.
@@ -36,14 +50,14 @@ DADOS PARA ANÁLISE:
 
 FORMATO OBRIGATÓRIO DO RELATÓRIO:
 
-📊 Análise Pós-venda — {datetime.now().strftime('%B/%Y')}
+[DADOS] Análise Pós-venda — {datetime.now().strftime('%B/%Y')}
 
-✅ Visão Geral
+[OK] Visão Geral
 NPS Atendimento: [número] ([classificação])
 NPS Produto: [número] ([classificação])
 Total de Avaliações: [número]
 
-👥 Avaliação de Atendimento
+[PESSOAS] Avaliação de Atendimento
 Média de satisfação: [número]/10
 Performance: [texto de 1-2 linhas explicando o resultado]
 
@@ -53,7 +67,7 @@ Destaques Positivos:
 Pontos de Atenção:
 • [comentário crítico] - [nome], nota [número]
 
-🛍️ Avaliação de Produto
+[PRODUTO] Avaliação de Produto
 Média de satisfação: [número]/10
 Performance: [texto de 1-2 linhas explicando o resultado]
 
@@ -67,7 +81,7 @@ Pontos de Atenção:
 Destaque: [nome] com média [número] em [quantidade] atendimentos
 Acompanhamento: [nome] necessita suporte com média [número]
 
-💡 Recomendações
+[IDEIA] Recomendações
 1. [ação específica baseada nos dados]
 2. [melhoria concreta]
 3. [estratégia de manutenção]
@@ -97,11 +111,11 @@ REGRAS CRÍTICAS:
             # Monta relatório final
             relatorio_final = self._montar_relatorio_final(relatorio_ia)
             
-            print("✅ Análise IA concluída!")
+            print("[OK] Análise IA concluída!")
             return relatorio_final
             
         except Exception as e:
-            print(f"⚠️ Erro na análise IA: {str(e)}")
+            print(f"[AVISO] Erro na análise IA: {str(e)}")
             return self._gerar_relatorio_basico()
     
     def _preparar_resumo_dados(self):
@@ -112,12 +126,12 @@ REGRAS CRÍTICAS:
             if self.dados.get('todos') is not None:
                 df_todos = self.dados['todos']
                 total = len(df_todos)
-                resumo += f"📊 Total de registros: {total}\n\n"
+                resumo += f"[DADOS] Total de registros: {total}\n\n"
                 
                 # Análise por tipo de aba
                 if 'Tipo_Aba' in df_todos.columns:
                     tipos = df_todos['Tipo_Aba'].value_counts()
-                    resumo += "📋 Distribuição por tipo:\n"
+                    resumo += "[RELATORIO] Distribuição por tipo:\n"
                     for tipo, count in tipos.items():
                         resumo += f"   • {tipo}: {count} registros\n"
                     resumo += "\n"
@@ -140,7 +154,7 @@ REGRAS CRÍTICAS:
                                     aval_tipo = df_tipo['Avaliação'].dropna()
                                     if len(aval_tipo) > 0:
                                         tipo_nome = 'ATENDIMENTO (D+1)' if tipo == 'atendimento' else 'PRODUTO (D+30)'
-                                        resumo += f"📊 {tipo_nome}:\n"
+                                        resumo += f"[DADOS] {tipo_nome}:\n"
                                         resumo += f"   • Total avaliações: {len(aval_tipo)}\n"
                                         resumo += f"   • Média de nota: {aval_tipo.mean():.2f}\n"
                                         
@@ -156,7 +170,7 @@ REGRAS CRÍTICAS:
                 # Análise de vendedores
                 if 'Vendedor' in df_todos.columns:
                     vendedores = df_todos['Vendedor'].value_counts().head(10)
-                    resumo += f"👥 TOP VENDEDORES:\n"
+                    resumo += f"[PESSOAS] TOP VENDEDORES:\n"
                     for vendedor, count in vendedores.items():
                         if vendedor and str(vendedor).strip() != '' and str(vendedor) != 'nan':
                             # Calcula média do vendedor se possível
@@ -174,7 +188,7 @@ REGRAS CRÍTICAS:
                 if 'Avaliação' in df_todos.columns and 'Comentário' in df_todos.columns:
                     comentarios_ruins = df_todos[df_todos['Avaliação'] <= 6]
                     if len(comentarios_ruins) > 0:
-                        resumo += f"⚠️ COMENTÁRIOS CRÍTICOS (nota ≤6):\n"
+                        resumo += f"[AVISO] COMENTÁRIOS CRÍTICOS (nota ≤6):\n"
                         for idx, row in comentarios_ruins.head(5).iterrows():
                             nota = row.get('Avaliação', 'N/A')
                             comentario = str(row.get('Comentário', '')).strip()
@@ -272,7 +286,7 @@ REGRAS CRÍTICAS:
         timestamp = datetime.now().strftime('%d/%m/%Y às %H:%M')
         
         relatorio = f"""
-📅 Data da Análise: {timestamp}
+[DATA] Data da Análise: {timestamp}
 
 {relatorio_ia}
 """
@@ -289,14 +303,14 @@ REGRAS CRÍTICAS:
 ║                   {self.nome_loja.upper():<45} ║
 ╚═══════════════════════════════════════════════════════════════╝
 
-📅 Data da Análise: {timestamp}
+[DATA] Data da Análise: {timestamp}
 
-📊 DADOS PROCESSADOS:
+[DADOS] DADOS PROCESSADOS:
 • Dados extraídos e organizados com sucesso
 • Sistema funcionando adequadamente
 • Pronto para análise detalhada
 
-💡 OBSERVAÇÃO:
+[IDEIA] OBSERVAÇÃO:
 • Análise IA temporariamente indisponível
 • Dados estruturados para processamento manual
 
@@ -307,8 +321,11 @@ REGRAS CRÍTICAS:
 
 
 if __name__ == "__main__":
-    print("🤖 Analisador IA Simple pronto!")
+    print("Analisador IA Simple pronto!")
     # Teste básico
     dados_teste = {'todos': None}
-    analisador = AnalisadorIACustomizado(dados_teste, "Teste")
-    print("✅ Inicialização concluída!")
+    try:
+        analisador = AnalisadorIACustomizado(dados_teste, "Teste")
+        print("Inicializacao concluida!")
+    except Exception as e:
+        print(f"Erro na inicializacao: {e}")

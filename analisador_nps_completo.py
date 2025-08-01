@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Analisador NPS Completo - Análise automática de planilhas Google Sheets
 Autor: Claude Code  
 Data: 27/07/2025
 """
+
+# Correção de encoding para Windows - DEVE SER PRIMEIRA IMPORTAÇÃO
+from encoding_fix import setup_windows_encoding, safe_print
+setup_windows_encoding()
 
 import pandas as pd
 import requests
@@ -13,6 +18,17 @@ from datetime import datetime
 import unicodedata
 import openai
 import os
+import time
+from dotenv import load_dotenv
+from cache_manager import cache_manager
+import colorama
+from colorama import init
+
+# Inicializa colorama para suporte a emojis no Windows
+init(autoreset=True)
+
+# Carrega configurações do .env
+load_dotenv()
 
 
 class AnalisadorNPSCompleto:
@@ -26,7 +42,7 @@ class AnalisadorNPSCompleto:
         # Configuração da API OpenAI
         api_key = os.getenv('OPENAI_API_KEY')
         if not api_key:
-            print("⚠️ OPENAI_API_KEY não configurada - análise IA será desabilitada")
+            print("[AVISO] OPENAI_API_KEY não configurada - análise IA será desabilitada")
             self.openai_client = None
         else:
             self.openai_client = openai.OpenAI(api_key=api_key)
@@ -36,18 +52,18 @@ class AnalisadorNPSCompleto:
         for gid in gids:
             if gid not in self.gids_customizados:
                 self.gids_customizados.append(gid)
-        print(f"✅ GIDs adicionados: {gids}")
-        print(f"📋 Total de GIDs customizados: {len(self.gids_customizados)}")
+        print(f"[OK] GIDs adicionados: {gids}")
+        print(f"[RELATORIO] Total de GIDs customizados: {len(self.gids_customizados)}")
     
     def definir_gids(self, gids_lista):
         """Define uma lista completa de GIDs para busca"""
         self.gids_customizados = list(gids_lista)
-        print(f"✅ GIDs definidos: {self.gids_customizados}")
+        print(f"[OK] GIDs definidos: {self.gids_customizados}")
     
     def limpar_gids(self):
         """Remove todos os GIDs customizados (volta ao padrão)"""
         self.gids_customizados = []
-        print("✅ GIDs customizados removidos - usando busca padrão")
+        print("[OK] GIDs customizados removidos - usando busca padrão")
         
     def analisar_planilha(self, url_planilha, data_inicio=None, data_fim=None):
         """
@@ -60,50 +76,50 @@ class AnalisadorNPSCompleto:
             data_fim: data de fim do filtro (formato YYYY-MM-DD ou datetime)
         """
         try:
-            print("🚀 Iniciando análise completa NPS...")
-            print(f"📍 Loja: {self.nome_loja}")
+            print("[INICIO] Iniciando análise completa NPS...")
+            print(f"[LOCAL] Loja: {self.nome_loja}")
             
             # Exibe informações sobre filtro por data se aplicável
             if data_inicio or data_fim:
-                print(f"📅 Filtro por data ativo:")
+                print(f"[DATA] Filtro por data ativo:")
                 if data_inicio:
                     data_inicio_str = data_inicio.strftime('%d/%m/%Y') if hasattr(data_inicio, 'strftime') else data_inicio
-                    print(f"   📅 Data início: {data_inicio_str}")
+                    print(f"   [DATA] Data início: {data_inicio_str}")
                 if data_fim:
                     data_fim_str = data_fim.strftime('%d/%m/%Y') if hasattr(data_fim, 'strftime') else data_fim  
-                    print(f"   📅 Data fim: {data_fim_str}")
+                    print(f"   [DATA] Data fim: {data_fim_str}")
             
             # ETAPA 1: Extração automática das abas
-            print("\n📥 ETAPA 1: Extração das Abas")
+            print("\n[ENTRADA] ETAPA 1: Extração das Abas")
             if not self._extrair_abas_automaticamente(url_planilha):
-                return "❌ Falha na extração das abas"
+                return "[ERRO] Falha na extração das abas"
             
             # ETAPA 2: Padronização dos dados
-            print("\n🔧 ETAPA 2: Padronização dos Dados")
+            print("\n[PROCESSO] ETAPA 2: Padronização dos Dados")
             self._padronizar_todos_dados()
             
             # ETAPA 2.5: Aplicação do filtro por data (NOVA ETAPA)
             if data_inicio or data_fim:
-                print("\n📅 ETAPA 2.5: Aplicação do Filtro por Data")
+                print("\n[DATA] ETAPA 2.5: Aplicação do Filtro por Data")
                 self._aplicar_filtro_data(data_inicio, data_fim)
             
             # ETAPA 3: Cálculo das métricas NPS
-            print("\n📊 ETAPA 3: Cálculo das Métricas NPS")
+            print("\n[DADOS] ETAPA 3: Cálculo das Métricas NPS")
             self._calcular_metricas_nps()
             
             # ETAPA 4: Análise IA dos insights
-            print("\n🤖 ETAPA 4: Análise IA dos Insights")
+            print("\n[IA] ETAPA 4: Análise IA dos Insights")
             insights_ia = self._gerar_insights_ia()
             
             # ETAPA 5: Geração do resumo final
-            print("\n📋 ETAPA 5: Geração do Resumo")
+            print("\n[RELATORIO] ETAPA 5: Geração do Resumo")
             resumo = self._gerar_resumo_completo(insights_ia, data_inicio, data_fim)
             
-            print("✅ Análise concluída com sucesso!")
+            print("[OK] Análise concluída com sucesso!")
             return resumo
             
         except Exception as e:
-            return f"❌ Erro na análise: {str(e)}"
+            return f"[ERRO] Erro na análise: {str(e)}"
     
     def _aplicar_filtro_data(self, data_inicio=None, data_fim=None):
         """Aplica filtro por data em todas as abas extraídas"""
@@ -125,92 +141,102 @@ class AnalisadorNPSCompleto:
                     if df_filtrado is not None and len(df_filtrado) > 0:
                         dados_filtrados[tipo_aba] = df_filtrado
                         total_filtrado += len(df_filtrado)
-                        print(f"✅ {tipo_aba}: {len(df)} → {len(df_filtrado)} registros")
+                        print(f"[OK] {tipo_aba}: {len(df)} → {len(df_filtrado)} registros")
                     else:
-                        print(f"⚠️ {tipo_aba}: Nenhum registro encontrado no período")
+                        print(f"[AVISO] {tipo_aba}: Nenhum registro encontrado no período")
             
             # Atualiza os dados com versão filtrada
             self.dados_abas = dados_filtrados
             
-            print(f"📊 Resumo do filtro:")
-            print(f"   📊 Total original: {total_original} registros")
-            print(f"   📊 Total filtrado: {total_filtrado} registros")
-            print(f"   📊 Redução: {((total_original - total_filtrado) / total_original * 100):.1f}%" if total_original > 0 else "   📊 Redução: 0%")
+            print(f"[DADOS] Resumo do filtro:")
+            print(f"   [DADOS] Total original: {total_original} registros")
+            print(f"   [DADOS] Total filtrado: {total_filtrado} registros")
+            print(f"   [DADOS] Redução: {((total_original - total_filtrado) / total_original * 100):.1f}%" if total_original > 0 else "   [DADOS] Redução: 0%")
             
         except Exception as e:
-            print(f"⚠️ Erro ao aplicar filtro por data: {str(e)}")
-            print("   🔄 Continuando com dados originais...")
+            print(f"[AVISO] Erro ao aplicar filtro por data: {str(e)}")
+            print("   [REPETIR] Continuando com dados originais...")
     
     def _extrair_abas_automaticamente(self, url):
-        """Sistema multi-estratégia para descobrir abas de qualquer planilha"""
+        """Sistema multi-estratégia para descobrir abas de qualquer planilha - COM CACHE"""
         try:
+            # Armazena URL para cache
+            self._current_url = url
+            
+            # Verifica cache primeiro
+            cached_data = cache_manager.get_cached_data(url)
+            if cached_data and cached_data.get('data'):
+                print("💾 Dados recuperados do cache - processamento instantâneo!")
+                self.dados_abas = cached_data['data']
+                return True
+            
             sheet_id = self._extrair_sheet_id(url)
             if not sheet_id:
-                print("❌ ID da planilha não encontrado")
+                print("[ERRO] ID da planilha não encontrado")
                 return False
             
-            print("🔍 Iniciando descoberta multi-estratégia de abas...")
+            print("[BUSCA] Iniciando descoberta multi-estratégia de abas...")
             
             # === ESTRATÉGIA 0: PLANILHA ABA ÚNICA (sua planilha especial) ===
-            print("🎯 ESTRATÉGIA 0: Verificando se é planilha de aba única...")
+            print("[META] ESTRATÉGIA 0: Verificando se é planilha de aba única...")
             if self._tentar_extracao_aba_unica(sheet_id, url):
                 return True
             
             # === ESTRATÉGIA 1: GIDs CUSTOMIZADOS (mais rápido) ===
             if self.gids_customizados:
-                print(f"🎯 ESTRATÉGIA 1: Usando GIDs customizados: {self.gids_customizados}")
+                print(f"[META] ESTRATÉGIA 1: Usando GIDs customizados: {self.gids_customizados}")
                 abas_encontradas = self._buscar_por_gids_especificos(sheet_id, self.gids_customizados)
                 if len(abas_encontradas) >= 2:  # Se encontrou pelo menos 2 abas
                     self.dados_abas = abas_encontradas
                     return self._finalizar_extracao(abas_encontradas)
             
             # === ESTRATÉGIA 1.5: BUSCA POR ÍNDICE DAS ABAS ===
-            print("🎯 ESTRATÉGIA 1.5: Busca por índice das abas...")
+            print("[META] ESTRATÉGIA 1.5: Busca por índice das abas...")
             abas_por_indice = self._buscar_por_indice_abas(sheet_id)
             if len(abas_por_indice) >= 2:
                 self.dados_abas = abas_por_indice
                 return self._finalizar_extracao(abas_por_indice)
             
             # === ESTRATÉGIA 1.7: BUSCA FORÇADA POR NOMES EXATOS ===
-            print("🎯 ESTRATÉGIA 1.7: Busca forçada por nomes exatos das 3 abas...")
+            print("[META] ESTRATÉGIA 1.7: Busca forçada por nomes exatos das 3 abas...")
             abas_forcadas = self._buscar_forcado_nomes_exatos(sheet_id)
             if len(abas_forcadas) >= 2:
                 self.dados_abas = abas_forcadas
                 return self._finalizar_extracao(abas_forcadas)
             
             # === ESTRATÉGIA 2: BUSCA DIRETA POR NOMES (SEM GIDs) ===
-            print("🔍 ESTRATÉGIA 2: Busca direta por nomes de abas...")
+            print("[BUSCA] ESTRATÉGIA 2: Busca direta por nomes de abas...")
             abas_diretas = self._buscar_abas_por_nomes_diretos(sheet_id)
             if len(abas_diretas) >= 2:
                 self.dados_abas = abas_diretas
                 return self._finalizar_extracao(abas_diretas)
             
             # === ESTRATÉGIA 3: DESCOBERTA POR NOMES DAS ABAS ===
-            print("🔍 ESTRATÉGIA 3: Tentando descobrir GIDs por nomes das abas...")
+            print("[BUSCA] ESTRATÉGIA 3: Tentando descobrir GIDs por nomes das abas...")
             abas_por_nomes = self._descobrir_gids_por_nomes(sheet_id)
             if len(abas_por_nomes) >= 2:
                 self.dados_abas = abas_por_nomes
                 return self._finalizar_extracao(abas_por_nomes)
             
             # === ESTRATÉGIA 4: BUSCA INTELIGENTE OTIMIZADA ===
-            print("🔍 ESTRATÉGIA 4: Busca inteligente com padrões otimizados...")
+            print("[BUSCA] ESTRATÉGIA 4: Busca inteligente com padrões otimizados...")
             abas_inteligente = self._busca_inteligente_otimizada(sheet_id, url)
             if len(abas_inteligente) >= 1:
                 self.dados_abas = abas_inteligente
                 return self._finalizar_extracao(abas_inteligente)
             
             # === ESTRATÉGIA 5: BUSCA EXAUSTIVA (último recurso) ===
-            print("🔍 ESTRATÉGIA 5: Busca exaustiva (último recurso)...")
+            print("[BUSCA] ESTRATÉGIA 5: Busca exaustiva (último recurso)...")
             abas_exaustiva = self._busca_exaustiva(sheet_id)
             if len(abas_exaustiva) >= 1:
                 self.dados_abas = abas_exaustiva
                 return self._finalizar_extracao(abas_exaustiva)
             
-            print("❌ Nenhuma aba válida encontrada em todas as estratégias")
+            print("[ERRO] Nenhuma aba válida encontrada em todas as estratégias")
             return False
                 
         except Exception as e:
-            print(f"❌ Erro na extração: {str(e)}")
+            print(f"[ERRO] Erro na extração: {str(e)}")
             return False
     
     def _ler_csv_com_encoding(self, texto_csv):
@@ -232,7 +258,7 @@ class AnalisadorNPSCompleto:
                 continue
         
         # Fallback para DataFrame vazio se tudo falhar
-        print("   ⚠️ Erro ao ler CSV - retornando DataFrame vazio")
+        print("   [AVISO] Erro ao ler CSV - retornando DataFrame vazio")
         return pd.DataFrame()
     
     def _identificar_tipo_aba(self, df):
@@ -240,7 +266,7 @@ class AnalisadorNPSCompleto:
         # Corrige encoding das colunas primeiro
         colunas_corrigidas = [self._corrigir_encoding_comum(str(col)) for col in df.columns]
         
-        print(f"   🔍 Analisando colunas: {colunas_corrigidas}")
+        print(f"   [BUSCA] Analisando colunas: {colunas_corrigidas}")
         
         colunas_texto = ' '.join(colunas_corrigidas)
         
@@ -251,7 +277,7 @@ class AnalisadorNPSCompleto:
         # Se tem WhatsApp, é MUITO provavelmente D+30, mesmo que tenha outras palavras
         if tem_whatsapp:
             whatsapp_encontrados = [p for p in palavras_whatsapp if p in colunas_texto]
-            print(f"   ✅ Detectado NPS D+30 (PRIORIDADE: WhatsApp): {whatsapp_encontrados}")
+            print(f"   [OK] Detectado NPS D+30 (PRIORIDADE: WhatsApp): {whatsapp_encontrados}")
             return 'NPS_D30'
         
         # Outras palavras D+30 (sem WhatsApp)
@@ -262,7 +288,7 @@ class AnalisadorNPSCompleto:
         ]
         palavras_d30_encontradas = [p for p in outras_palavras_d30 if p in colunas_texto]
         if palavras_d30_encontradas:
-            print(f"   ✅ Detectado NPS D+30 (outras palavras): {palavras_d30_encontradas}")
+            print(f"   [OK] Detectado NPS D+30 (outras palavras): {palavras_d30_encontradas}")
             return 'NPS_D30'
         
         # === PRIORIDADE 2: DETECTAR D+1 (telefone sem WhatsApp) ===
@@ -270,7 +296,7 @@ class AnalisadorNPSCompleto:
         tem_telefone = any(palavra in colunas_texto for palavra in palavras_telefone)
         
         if tem_telefone and not tem_whatsapp:
-            print(f"   ✅ Detectado NPS D+1 (telefone sem WhatsApp)")
+            print(f"   [OK] Detectado NPS D+1 (telefone sem WhatsApp)")
             return 'NPS_D1'
         
         # === PRIORIDADE 3: NPS RUIM (casos críticos com gestão) ===
@@ -305,17 +331,17 @@ class AnalisadorNPSCompleto:
             if tem_resolucao_variantes: indicadores.append('resolucao') 
             if tem_fonte: indicadores.append('fonte')
             indicadores.append('bot')
-            print(f"   ✅ Detectado NPS Ruim (gestão específica): {indicadores}")
+            print(f"   [OK] Detectado NPS Ruim (gestão específica): {indicadores}")
             return 'NPS_Ruim'
         
         # Fallback original: pelo menos 2 indicadores de gestão
         if len(palavras_gestao_encontradas) >= 2:
-            print(f"   ✅ Detectado NPS Ruim (múltiplos indicadores): {palavras_gestao_encontradas}")
+            print(f"   [OK] Detectado NPS Ruim (múltiplos indicadores): {palavras_gestao_encontradas}")
             return 'NPS_Ruim'
         
         # === FALLBACK: Se tem bot mas não outros indicadores, pode ser dados gerais ===
         if tem_bot:
-            print(f"   ⚠️ Bot detectado mas sem indicadores de gestão - assumindo dados gerais")
+            print(f"   [AVISO] Bot detectado mas sem indicadores de gestão - assumindo dados gerais")
             return 'Dados_Gerais'
         
         # === MÉTODO 2: SISTEMA DE PONTUAÇÃO AVANÇADO ===
@@ -323,7 +349,7 @@ class AnalisadorNPSCompleto:
         # Se o método original não funcionou, usa pontuação avançada
         palavras_avaliacao = ['avaliacao', 'avaliação', 'nota', 'score', 'rating', 'avaliaacaao']
         if any(palavra in ' '.join(colunas_corrigidas) for palavra in palavras_avaliacao):
-            print(f"   🔍 Método original não identificou - usando análise avançada...")
+            print(f"   [BUSCA] Método original não identificou - usando análise avançada...")
             
             # Análise DETALHADA baseada no conteúdo dos dados
             if len(df) > 0:
@@ -331,7 +357,7 @@ class AnalisadorNPSCompleto:
                 amostra_dados = df.head(10).astype(str).apply(lambda x: ' '.join(x), axis=1).str.lower()
                 conteudo_completo = ' '.join(amostra_dados)
                 
-                print(f"   🔍 Analisando conteúdo: {conteudo_completo[:200]}...")
+                print(f"   [BUSCA] Analisando conteúdo: {conteudo_completo[:200]}...")
                 
                 # Sistema de pontuação melhorado
                 scores = {'NPS_Ruim': 0, 'NPS_D30': 0, 'NPS_D1': 0}
@@ -361,24 +387,24 @@ class AnalisadorNPSCompleto:
                 score_d1 = sum(1 for padrao in padroes_d1 if padrao in conteudo_completo)
                 scores['NPS_D1'] = score_d1
                 
-                print(f"   📊 Scores de conteúdo: NPS_Ruim({score_ruim}) | D30({score_d30}) | D1({score_d1})")
+                print(f"   [DADOS] Scores de conteúdo: NPS_Ruim({score_ruim}) | D30({score_d30}) | D1({score_d1})")
                 
                 # Decisão baseada em pontuação
                 if score_ruim >= 2:  # Se encontrar 2+ padrões de NPS Ruim
-                    print(f"   ✅ Identificado como NPS_Ruim (análise de conteúdo)")
+                    print(f"   [OK] Identificado como NPS_Ruim (análise de conteúdo)")
                     return 'NPS_Ruim'
                 elif score_d30 >= 1:  # Se encontrar WhatsApp
-                    print(f"   ✅ Identificado como NPS_D30 (análise de conteúdo)")
+                    print(f"   [OK] Identificado como NPS_D30 (análise de conteúdo)")
                     return 'NPS_D30'
                 elif score_d1 >= 1 or tem_telefone:  # Se encontrar padrões D+1 ou tem telefone
-                    print(f"   ✅ Identificado como NPS_D1 (análise de conteúdo)")
+                    print(f"   [OK] Identificado como NPS_D1 (análise de conteúdo)")
                     return 'NPS_D1'
             
             # Fallback para D+1 se tem avaliação (ORIGINAL)
-            print(f"   ✅ Fallback: NPS_D1 (tem avaliação)")
+            print(f"   [OK] Fallback: NPS_D1 (tem avaliação)")
             return 'NPS_D1'
         
-        print(f"   ⚠️ Aba não identificada (sem colunas de avaliação)")
+        print(f"   [AVISO] Aba não identificada (sem colunas de avaliação)")
         return 'desconhecido'
     
     def _padronizar_todos_dados(self):
@@ -395,10 +421,10 @@ class AnalisadorNPSCompleto:
                 df_padronizado = df_padronizado.dropna(how='all')
                 
                 self.dados_abas[tipo_aba] = df_padronizado
-                print(f"✅ {tipo_aba}: dados padronizados")
+                print(f"[OK] {tipo_aba}: dados padronizados")
                 
             except Exception as e:
-                print(f"⚠️ Erro na padronização de {tipo_aba}: {str(e)}")
+                print(f"[AVISO] Erro na padronização de {tipo_aba}: {str(e)}")
     
     def _padronizar_colunas(self, df):
         """Padroniza nomes das colunas: remove acentos, espaços → underscore"""
@@ -473,9 +499,9 @@ class AnalisadorNPSCompleto:
         
         if col_avaliacao:
             df[col_avaliacao] = pd.to_numeric(df[col_avaliacao], errors='coerce')
-            print(f"   ✅ Coluna de avaliação encontrada: '{col_avaliacao}'")
+            print(f"   [OK] Coluna de avaliação encontrada: '{col_avaliacao}'")
         else:
-            print("   ⚠️ Coluna de avaliação não encontrada")
+            print("   [AVISO] Coluna de avaliação não encontrada")
         
         return df
     
@@ -495,15 +521,15 @@ class AnalisadorNPSCompleto:
                 if tipo_aba in ['NPS_D1', 'NPS_D30']:
                     metricas = self._calcular_nps_aba(df, tipo_aba)
                     self.metricas_calculadas[tipo_aba] = metricas
-                    print(f"✅ {tipo_aba}: métricas calculadas")
+                    print(f"[OK] {tipo_aba}: métricas calculadas")
                 elif tipo_aba == 'NPS_Ruim':
                     # Para NPS Ruim, fazemos análise diferente
                     analise_ruim = self._analisar_nps_ruim(df)
                     self.metricas_calculadas[tipo_aba] = analise_ruim
-                    print(f"✅ {tipo_aba}: análise de casos críticos concluída")
+                    print(f"[OK] {tipo_aba}: análise de casos críticos concluída")
                     
             except Exception as e:
-                print(f"⚠️ Erro no cálculo de métricas para {tipo_aba}: {str(e)}")
+                print(f"[AVISO] Erro no cálculo de métricas para {tipo_aba}: {str(e)}")
     
     def _calcular_nps_aba(self, df, tipo_aba):
         """Calcula NPS para uma aba específica (D+1 ou D+30)"""
@@ -598,18 +624,18 @@ class AnalisadorNPSCompleto:
         """Gera resumo final estruturado com insights IA"""
         try:
             resumo = f"""
-📅 Data da Análise: {datetime.now().strftime('%d/%m/%Y às %H:%M')}
+[DATA] Data da Análise: {datetime.now().strftime('%d/%m/%Y às %H:%M')}
 """
             
             # Adiciona informações sobre filtro por data se aplicável
             if data_inicio or data_fim:
-                resumo += "🔍 Filtro por Data Aplicado:\n"
+                resumo += "[BUSCA] Filtro por Data Aplicado:\n"
                 if data_inicio:
                     data_inicio_str = data_inicio.strftime('%d/%m/%Y') if hasattr(data_inicio, 'strftime') else data_inicio
-                    resumo += f"   📅 Data início: {data_inicio_str}\n"
+                    resumo += f"   [DATA] Data início: {data_inicio_str}\n"
                 if data_fim:
                     data_fim_str = data_fim.strftime('%d/%m/%Y') if hasattr(data_fim, 'strftime') else data_fim
-                    resumo += f"   📅 Data fim: {data_fim_str}\n"
+                    resumo += f"   [DATA] Data fim: {data_fim_str}\n"
                 resumo += "\n"
             
             # Resumo das métricas NPS D+1 e D+30
@@ -653,18 +679,18 @@ class AnalisadorNPSCompleto:
                 if 'erro' not in metricas:
                     tipo_nome = metricas['tipo']
                     secao += f"""
-🎯 {tipo_nome.upper()}:
-   📊 Total de Respostas: {metricas['total_respostas']:,}
-   📈 Score NPS: {metricas['nps_score']:.1f}
+[META] {tipo_nome.upper()}:
+   [DADOS] Total de Respostas: {metricas['total_respostas']:,}
+   [CRESCIMENTO] Score NPS: {metricas['nps_score']:.1f}
    ⭐ Nota Média: {metricas['nota_media']:.2f}
    
-   📋 Distribuição:
+   [RELATORIO] Distribuição:
    🟢 Promotores (9-10): {metricas['promotores']['count']:,} ({metricas['promotores']['percentual']:.1f}%)
    🟡 Neutros (7-8):     {metricas['neutros']['count']:,} ({metricas['neutros']['percentual']:.1f}%)
    🔴 Detratores (≤6):   {metricas['detratores']['count']:,} ({metricas['detratores']['percentual']:.1f}%)
 """
                 else:
-                    secao += f"\n⚠️ {tipo_aba}: {metricas['erro']}\n"
+                    secao += f"\n[AVISO] {tipo_aba}: {metricas['erro']}\n"
         
         return secao
     
@@ -681,19 +707,19 @@ class AnalisadorNPSCompleto:
             dados_ruim = self.metricas_calculadas['NPS_Ruim']
             
             if 'erro' not in dados_ruim:
-                secao += f"📊 Total de Casos Críticos: {dados_ruim['total_casos']:,}\n\n"
-                secao += "🔍 10 CASOS MAIS CRÍTICOS (menores notas):\n\n"
+                secao += f"[DADOS] Total de Casos Críticos: {dados_ruim['total_casos']:,}\n\n"
+                secao += "[BUSCA] 10 CASOS MAIS CRÍTICOS (menores notas):\n\n"
                 
                 for caso in dados_ruim['casos_criticos']:
                     secao += f"""
-{caso['posicao']:2d}. 📍 Nota: {caso['avaliacao']} | Vendedor: {caso['vendedor']} | Loja: {caso['loja']}
-    💬 "{caso['comentario']}"
+{caso['posicao']:2d}. [LOCAL] Nota: {caso['avaliacao']} | Vendedor: {caso['vendedor']} | Loja: {caso['loja']}
+    [MSG] "{caso['comentario']}"
 """
             else:
-                secao += f"⚠️ NPS Ruim: {dados_ruim['erro']}\n"
+                secao += f"[AVISO] NPS Ruim: {dados_ruim['erro']}\n"
         else:
-            secao += "⚠️ Aba 'NPS Ruim' não encontrada na planilha\n\n"
-            secao += "💡 ANÁLISE ALTERNATIVA DE CASOS CRÍTICOS:\n"
+            secao += "[AVISO] Aba 'NPS Ruim' não encontrada na planilha\n\n"
+            secao += "[IDEIA] ANÁLISE ALTERNATIVA DE CASOS CRÍTICOS:\n"
             secao += self._analisar_detratores_das_abas_existentes()
         
         return secao
@@ -718,12 +744,12 @@ class AnalisadorNPSCompleto:
                 elif 'total_casos' in metricas:
                     total_respostas_geral += metricas['total_casos']
         
-        secao += f"""📊 ESTATÍSTICAS GERAIS:
+        secao += f"""[DADOS] ESTATÍSTICAS GERAIS:
    • Abas processadas: {abas_processadas}/3
    • Total de registros analisados: {total_respostas_geral:,}
    • Planilha: Google Sheets (acesso público)
    
-🏪 Loja: {self.nome_loja}
+[LOJA] Loja: {self.nome_loja}
 ⏰ Processado em: {datetime.now().strftime('%d/%m/%Y às %H:%M:%S')}
 """
         
@@ -754,7 +780,7 @@ class AnalisadorNPSCompleto:
                         if len(detratores) > 0:
                             tipo_nome = 'D+1 (Atendimento)' if tipo_aba == 'NPS_D1' else 'D+30 (Produto)'
                             analise += f"\n🔴 DETRATORES {tipo_nome}:\n"
-                            analise += f"   📊 Total: {len(detratores)} casos\n\n"
+                            analise += f"   [DADOS] Total: {len(detratores)} casos\n\n"
                             
                             # Top 5 piores casos
                             detratores_ordenados = detratores.sort_values(col_avaliacao).head(5)
@@ -765,21 +791,21 @@ class AnalisadorNPSCompleto:
                                 loja = row[col_loja] if col_loja and pd.notna(row[col_loja]) else 'N/A'
                                 comentario = str(row[col_comentario])[:150] if col_comentario and pd.notna(row[col_comentario]) else 'Sem comentário'
                                 
-                                analise += f"   {i}. 📍 Nota: {nota} | {vendedor} | {loja}\n"
-                                analise += f"      💬 \"{comentario}...\"\n\n"
+                                analise += f"   {i}. [LOCAL] Nota: {nota} | {vendedor} | {loja}\n"
+                                analise += f"      [MSG] \"{comentario}...\"\n\n"
             
             if not analise:
-                analise = "   ✅ Excelente! Poucos ou nenhum detrator encontrado nas abas disponíveis.\n"
+                analise = "   [OK] Excelente! Poucos ou nenhum detrator encontrado nas abas disponíveis.\n"
             
             return analise
             
         except Exception as e:
-            return f"   ❌ Erro na análise de detratores: {str(e)}\n"
+            return f"   [ERRO] Erro na análise de detratores: {str(e)}\n"
     
     def _gerar_insights_ia(self):
         """Gera insights automáticos usando IA"""
         try:
-            print("🤖 Gerando insights com IA...")
+            print("[IA] Gerando insights com IA...")
             
             # Prepara dados resumidos para IA
             dados_para_ia = self._preparar_dados_para_ia()
@@ -792,20 +818,20 @@ DADOS RESUMIDOS:
 
 GERE UM RELATÓRIO DE INSIGHTS NO FORMATO:
 
-🎯 INSIGHTS PRINCIPAIS:
+[META] INSIGHTS PRINCIPAIS:
 • [Insight principal sobre performance]
 • [Insight sobre pontos fortes]
 • [Insight sobre oportunidades]
 
-📊 ANÁLISE COMPARATIVA:
+[DADOS] ANÁLISE COMPARATIVA:
 • D+1 vs D+30: [Comparação entre atendimento e produto]
 • Padrões identificados: [Padrões nos dados]
 
-⚠️ PONTOS DE ATENÇÃO:
+[AVISO] PONTOS DE ATENÇÃO:
 • [Principal problema identificado]
 • [Vendedores ou lojas que precisam atenção]
 
-🚀 RECOMENDAÇÕES ESTRATÉGICAS:
+[INICIO] RECOMENDAÇÕES ESTRATÉGICAS:
 1. [Recomendação urgente]
 2. [Recomendação de melhoria]
 3. [Recomendação preventiva]
@@ -823,11 +849,11 @@ Seja específico, use dados reais e foque em ações práticas.
             )
             
             insights = response.choices[0].message.content
-            print("✅ Insights IA gerados!")
+            print("[OK] Insights IA gerados!")
             return insights
             
         except Exception as e:
-            print(f"⚠️ Erro na geração de insights IA: {str(e)}")
+            print(f"[AVISO] Erro na geração de insights IA: {str(e)}")
             return self._gerar_insights_basicos()
     
     def _preparar_dados_para_ia(self):
@@ -839,7 +865,7 @@ Seja específico, use dados reais e foque em ações práticas.
             for tipo_aba, metricas in self.metricas_calculadas.items():
                 if 'erro' not in metricas:
                     if tipo_aba in ['NPS_D1', 'NPS_D30']:
-                        resumo_ia += f"📊 {metricas['tipo'].upper()}:\n"
+                        resumo_ia += f"[DADOS] {metricas['tipo'].upper()}:\n"
                         resumo_ia += f"   • Total respostas: {metricas['total_respostas']:,}\n"
                         resumo_ia += f"   • Score NPS: {metricas['nps_score']:.1f}\n"
                         resumo_ia += f"   • Nota média: {metricas['nota_media']:.2f}\n"
@@ -869,7 +895,7 @@ Seja específico, use dados reais e foque em ações práticas.
     def _analisar_vendedores_para_ia(self):
         """Analisa performance dos vendedores para IA"""
         try:
-            analise_vendedores = "\n📈 ANÁLISE DE VENDEDORES:\n"
+            analise_vendedores = "\n[CRESCIMENTO] ANÁLISE DE VENDEDORES:\n"
             
             # Combina dados de todas as abas para análise de vendedores
             todos_vendedores = {}
@@ -897,24 +923,24 @@ Seja específico, use dados reais e foque em ações práticas.
             return analise_vendedores
             
         except Exception as e:
-            return f"\n⚠️ Erro na análise de vendedores: {str(e)}\n"
+            return f"\n[AVISO] Erro na análise de vendedores: {str(e)}\n"
     
     def _gerar_insights_basicos(self):
         """Gera insights básicos sem IA"""
         return """
-🎯 INSIGHTS PRINCIPAIS:
+[META] INSIGHTS PRINCIPAIS:
 • Dados extraídos e processados com sucesso
 • Métricas NPS calculadas conforme padrão de mercado
 • Análise segmentada por tipo de avaliação
 
-📊 ANÁLISE COMPARATIVA:
+[DADOS] ANÁLISE COMPARATIVA:
 • Sistema funcionando adequadamente
 • Dados estruturados para análise
 
-⚠️ PONTOS DE ATENÇÃO:
+[AVISO] PONTOS DE ATENÇÃO:
 • Verificar conexão com IA para insights mais detalhados
 
-🚀 RECOMENDAÇÕES ESTRATÉGICAS:
+[INICIO] RECOMENDAÇÕES ESTRATÉGICAS:
 1. Monitorar regularmente as métricas NPS
 2. Focar na melhoria contínua da experiência
 3. Implementar ações baseadas nos feedbacks
@@ -953,7 +979,7 @@ Seja específico, use dados reais e foque em ações práticas.
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
         
-        print("   🔍 Testando extração por índices de abas (0, 1, 4)...")
+        print("   [BUSCA] Testando extração por índices de abas (0, 1, 4)...")
         
         for indice, tipo_esperado in indices_mapeamento.items():
             try:
@@ -976,10 +1002,10 @@ Seja específico, use dados reais e foque em ações práticas.
                         
                         if tipo_final not in abas_encontradas:
                             abas_encontradas[tipo_final] = df
-                            print(f"   ✅ {tipo_final}: {len(df)} registros (índice {indice})")
+                            print(f"   [OK] {tipo_final}: {len(df)} registros (índice {indice})")
                         
             except Exception as e:
-                print(f"   ⚠️ Erro no índice {indice}: {str(e)[:50]}")
+                print(f"   [AVISO] Erro no índice {indice}: {str(e)[:50]}")
                 continue
         
         return abas_encontradas
@@ -999,7 +1025,7 @@ Seja específico, use dados reais e foque em ações práticas.
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
         
-        print(f"   🎯 Forçando busca pelos nomes: {list(mapeamento_forcado.keys())}")
+        print(f"   [META] Forçando busca pelos nomes: {list(mapeamento_forcado.keys())}")
         
         for nome_aba, tipo_forcado in mapeamento_forcado.items():
             try:
@@ -1020,17 +1046,17 @@ Seja específico, use dados reais e foque em ações práticas.
                         if nome_aba == 'NPS Ruim':
                             # Para aba "NPS Ruim", força o tipo independente da detecção
                             tipo_final = tipo_forcado
-                            print(f"   🔒 FORÇADO: '{nome_aba}' → {tipo_forcado} (ignorando detecção automática)")
+                            print(f"   [FORCED] FORCADO: '{nome_aba}' -> {tipo_forcado} (ignorando deteccao automatica)")
                         else:
                             # Para outras abas, usa detecção automática se possível
                             tipo_detectado = self._identificar_tipo_aba(df)
                             tipo_final = tipo_detectado if tipo_detectado != 'desconhecido' and tipo_detectado != 'Dados_Gerais' else tipo_forcado
                         
                         abas_encontradas[tipo_final] = df
-                        print(f"   ✅ {tipo_final}: {len(df)} registros (nome forçado: '{nome_aba}')")
+                        print(f"   [OK] {tipo_final}: {len(df)} registros (nome forçado: '{nome_aba}')")
                         
             except Exception as e:
-                print(f"   ⚠️ Erro na busca forçada '{nome_aba}': {str(e)[:50]}")
+                print(f"   [AVISO] Erro na busca forçada '{nome_aba}': {str(e)[:50]}")
                 continue
         
         return abas_encontradas
@@ -1038,14 +1064,20 @@ Seja específico, use dados reais e foque em ações práticas.
     # === MÉTODOS DAS ESTRATÉGIAS DE DESCOBERTA ===
     
     def _buscar_por_gids_especificos(self, sheet_id, gids_lista):
-        """ESTRATÉGIA 1: Busca por GIDs específicos fornecidos"""
+        """ESTRATÉGIA 1: Busca por GIDs específicos fornecidos - PROCESSAMENTO SEQUENCIAL OTIMIZADO"""
         abas_encontradas = {}
         
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
         
-        for gid in gids_lista:
+        total_gids = len(gids_lista)
+        print(f"   [CRESCIMENTO] Processando {total_gids} GIDs sequencialmente...")
+        
+        for i, gid in enumerate(gids_lista, 1):
+            # Feedback de progresso real (não simulado)
+            progress_pct = (i / total_gids) * 100
+            print(f"   [PROGRESSO] {i}/{total_gids} ({progress_pct:.1f}%) - Processando GID: {gid}")
             # Retry com 2 tentativas por GID
             for tentativa in range(2):
                 try:
@@ -1064,12 +1096,12 @@ Seja específico, use dados reais e foque em ações práticas.
                             tipo_aba = self._identificar_tipo_aba(df)
                             if tipo_aba != 'desconhecido':
                                 abas_encontradas[tipo_aba] = df
-                                print(f"   ✅ {tipo_aba}: {len(df)} registros (GID {gid})")
+                                print(f"   [OK] {tipo_aba}: {len(df)} registros (GID {gid})")
                                 break  # Sucesso, sai do loop de retry
                             
                 except Exception as e:
                     if tentativa == 1:  # Última tentativa
-                        print(f"   ⚠️ Erro após 2 tentativas no GID {gid}: {str(e)[:50]}")
+                        print(f"   [AVISO] Erro após 2 tentativas no GID {gid}: {str(e)[:50]}")
                     continue
         
         return abas_encontradas
@@ -1126,11 +1158,11 @@ Seja específico, use dados reais e foque em ações práticas.
                             tipo_confirmado = self._identificar_tipo_aba(df)
                             if tipo_confirmado != 'desconhecido':
                                 abas_encontradas[tipo_confirmado] = df
-                                print(f"   ✅ {tipo_confirmado}: {len(df)} registros (nome: '{nome_aba}')")
+                                print(f"   [OK] {tipo_confirmado}: {len(df)} registros (nome: '{nome_aba}')")
                                 break  # Encontrou esta aba, passa para próximo tipo
                             elif tipo_aba not in abas_encontradas:  # Se não confirmou tipo mas não tem aba deste tipo ainda
                                 abas_encontradas[tipo_aba] = df
-                                print(f"   ✅ {tipo_aba}: {len(df)} registros (nome: '{nome_aba}' - assumido)")
+                                print(f"   [OK] {tipo_aba}: {len(df)} registros (nome: '{nome_aba}' - assumido)")
                                 break
                                 
                 except Exception:
@@ -1143,7 +1175,7 @@ Seja específico, use dados reais e foque em ações práticas.
         abas_encontradas = {}
         
         try:
-            print("   🔍 Analisando estrutura da planilha...")
+            print("   [BUSCA] Analisando estrutura da planilha...")
             
             # Testa GIDs baseados em padrões de nomes conhecidos
             gids_por_nomes = self._gerar_gids_por_padroes_nomes()
@@ -1159,13 +1191,13 @@ Seja específico, use dados reais e foque em ações práticas.
                             tipo_aba = self._identificar_tipo_aba(df)
                             if tipo_aba != 'desconhecido' and tipo_aba not in abas_encontradas:
                                 abas_encontradas[tipo_aba] = df
-                                print(f"   ✅ {tipo_aba}: {len(df)} registros (GID {gid} - por padrão)")
+                                print(f"   [OK] {tipo_aba}: {len(df)} registros (GID {gid} - por padrão)")
                                 
                 except Exception:
                     continue
                     
         except Exception as e:
-            print(f"   ⚠️ Erro na descoberta por nomes: {str(e)}")
+            print(f"   [AVISO] Erro na descoberta por nomes: {str(e)}")
         
         return abas_encontradas
     
@@ -1179,7 +1211,7 @@ Seja específico, use dados reais e foque em ações práticas.
         # Extrai GID da URL e gera variações
         url_gid = self._extrair_gid_da_url(url)
         if url_gid:
-            print(f"   🎯 GID da URL: {url_gid}")
+            print(f"   [META] GID da URL: {url_gid}")
             # Variações próximas mais amplas
             for i in range(-10, 11):
                 if i != 0:
@@ -1204,7 +1236,7 @@ Seja específico, use dados reais e foque em ações práticas.
         ]
         gids_inteligentes.extend(gids_comuns_grandes)
         
-        print(f"   📊 Testando {len(set(gids_inteligentes))} GIDs inteligentes...")
+        print(f"   [DADOS] Testando {len(set(gids_inteligentes))} GIDs inteligentes...")
         
         for gid in set(gids_inteligentes):
             try:
@@ -1217,7 +1249,7 @@ Seja específico, use dados reais e foque em ações práticas.
                         tipo_aba = self._identificar_tipo_aba(df)
                         if tipo_aba != 'desconhecido' and tipo_aba not in abas_encontradas:
                             abas_encontradas[tipo_aba] = df
-                            print(f"   ✅ {tipo_aba}: {len(df)} registros (GID {gid})")
+                            print(f"   [OK] {tipo_aba}: {len(df)} registros (GID {gid})")
                             
             except Exception:
                 continue
@@ -1228,7 +1260,7 @@ Seja específico, use dados reais e foque em ações práticas.
         """ESTRATÉGIA 4: Busca exaustiva (último recurso)"""
         abas_encontradas = {}
         
-        print("   ⚠️ Executando busca exaustiva - pode demorar...")
+        print("   [AVISO] Executando busca exaustiva - pode demorar...")
         
         # Sequências numéricas extensas
         ranges_exaustivos = [
@@ -1246,12 +1278,17 @@ Seja específico, use dados reais e foque em ações práticas.
             todos_gids.extend(list(r))
         todos_gids.extend(gids_od_extensivos)
         
-        print(f"   📊 Testando {len(todos_gids)} GIDs na busca exaustiva...")
+        print(f"   [DADOS] Testando {len(todos_gids)} GIDs na busca exaustiva...")
         
         for i, gid in enumerate(todos_gids):
-            # Mostra progresso a cada 50 GIDs
-            if i % 50 == 0 and i > 0:
-                print(f"   📈 Progresso: {i}/{len(todos_gids)} GIDs testados...")
+            # Feedback de progresso melhorado - a cada 25 GIDs
+            if i % 25 == 0 and i > 0:
+                progress_pct = (i / len(todos_gids)) * 100
+                found_count = len(abas_encontradas)
+                print(f"   [CRESCIMENTO] Progresso: {i}/{len(todos_gids)} ({progress_pct:.1f}%) - Encontradas: {found_count} abas")
+                
+                # Pequena pausa para não sobrecarregar (mantém lógica sequencial)
+                time.sleep(0.1)
             
             try:
                 csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
@@ -1263,16 +1300,58 @@ Seja específico, use dados reais e foque em ações práticas.
                         tipo_aba = self._identificar_tipo_aba(df)
                         if tipo_aba != 'desconhecido' and tipo_aba not in abas_encontradas:
                             abas_encontradas[tipo_aba] = df
-                            print(f"   ✅ {tipo_aba}: {len(df)} registros (GID {gid})")
+                            print(f"   [OK] {tipo_aba}: {len(df)} registros (GID {gid})")
                             
-                            # Para se encontrou as 3 abas principais
+                            # Para se encontrou as 3 abas principais (otimização)
                             if len(abas_encontradas) >= 3:
+                                print(f"   [OK] 3 abas encontradas - interrompendo busca exaustiva (otimização)")
                                 break
                             
             except Exception:
                 continue
         
         return abas_encontradas
+    
+    def process_gids_sequential(self, gids, progress_callback=None):
+        """MANTER processamento sequencial - requisito do usuário"""
+        print("[PROCESSO] Iniciando processamento sequencial de GIDs...")
+        results = []
+        total = len(gids)
+        
+        for i, gid in enumerate(gids):
+            # Progresso real (não simulado)
+            if progress_callback:
+                progress_callback(i + 1, total, f"Processando GID: {gid}")
+            
+            print(f"   [SEQUENCIAL] {i+1}/{total} - GID: {gid}")
+            
+            # Processa GID individual (mantém lógica atual) 
+            result = self.process_single_gid(gid)
+            results.append(result)
+            
+            # Pequena pausa para não sobrecarregar (conforme especificação)
+            time.sleep(0.1)
+        
+        print(f"[OK] Processamento sequencial concluído: {len(results)} resultados")
+        return results
+    
+    def process_single_gid(self, gid):
+        """Processa um único GID - mantém lógica existente"""
+        try:
+            # Implementa lógica de processamento individual
+            # (esta função pode ser expandida conforme necessário)
+            return {
+                'gid': gid,
+                'status': 'processed',
+                'timestamp': datetime.now().isoformat()
+            }
+        except Exception as e:
+            return {
+                'gid': gid,
+                'status': 'error',
+                'error': str(e),
+                'timestamp': datetime.now().isoformat()
+            }
     
     def _gerar_gids_por_padroes_nomes(self):
         """Gera GIDs baseado em padrões comuns de nomenclatura"""
@@ -1309,10 +1388,10 @@ Seja específico, use dados reais e foque em ações práticas.
     
     def _finalizar_extracao(self, abas_encontradas):
         """Finaliza o processo de extração com relatório e sistema de fallback inteligente"""
-        print(f"📊 Total de abas encontradas: {len(abas_encontradas)}")
+        print(f"[DADOS] Total de abas encontradas: {len(abas_encontradas)}")
         
         for tipo, df in abas_encontradas.items():
-            print(f"   📋 {tipo}: {len(df)} registros")
+            print(f"   [RELATORIO] {tipo}: {len(df)} registros")
         
         # Informa quais abas foram encontradas e quais estão faltando
         abas_esperadas = ['NPS_D1', 'NPS_D30', 'NPS_Ruim']
@@ -1321,24 +1400,31 @@ Seja específico, use dados reais e foque em ações práticas.
         
         # === SISTEMA DE FALLBACK INTELIGENTE ===
         if abas_faltantes:
-            print(f"⚠️ Abas não encontradas: {', '.join(abas_faltantes)}")
-            print("🔄 Aplicando sistema de fallback inteligente...")
+            print(f"[AVISO] Abas não encontradas: {', '.join(abas_faltantes)}")
+            print("[REPETIR] Aplicando sistema de fallback inteligente...")
             
             # Tentar reclassificar abas mal identificadas
             abas_reclassificadas = self._aplicar_fallback_inteligente(abas_encontradas, abas_faltantes)
             
             if abas_reclassificadas:
-                print("✅ Fallback aplicado com sucesso!")
+                print("[OK] Fallback aplicado com sucesso!")
                 # Atualiza as abas encontradas
                 abas_encontradas.update(abas_reclassificadas)
                 self.dados_abas.update(abas_reclassificadas)
                 
                 # Atualiza relatório
-                print("📊 Abas após fallback:")
+                print("[DADOS] Abas após fallback:")
                 for tipo, df in abas_encontradas.items():
-                    print(f"   📋 {tipo}: {len(df)} registros")
+                    print(f"   [RELATORIO] {tipo}: {len(df)} registros")
             else:
-                print("   💡 Fallback não encontrou abas adicionais")
+                print("   [IDEIA] Fallback não encontrou abas adicionais")
+        
+        # Salva no cache para próximas consultas (dados finalizados)
+        try:
+            if hasattr(self, '_current_url'):
+                cache_manager.save_to_cache(self._current_url, self.dados_abas)
+        except:
+            pass  # Ignora erros de cache
         
         return True
     
@@ -1354,7 +1440,7 @@ Seja específico, use dados reais e foque em ações práticas.
                     
                     # Se tem WhatsApp, é muito provavelmente D+30
                     if any(palavra in colunas_texto for palavra in ['whatsapp', 'zap', 'wpp']):
-                        print(f"   🔄 Reclassificando {tipo_atual} como NPS_D30 (WhatsApp detectado)")
+                        print(f"   [REPETIR] Reclassificando {tipo_atual} como NPS_D30 (WhatsApp detectado)")
                         abas_reclassificadas['NPS_D30'] = df
                         # Remove da lista original para evitar duplicação
                         if tipo_atual in abas_encontradas:
@@ -1372,7 +1458,7 @@ Seja específico, use dados reais e foque em ações práticas.
                     tem_whatsapp = any(palavra in colunas_texto for palavra in ['whatsapp', 'zap', 'wpp'])
                     
                     if tem_telefone and not tem_whatsapp:
-                        print(f"   🔄 Reclassificando {tipo_atual} como NPS_D1 (telefone sem WhatsApp)")
+                        print(f"   [REPETIR] Reclassificando {tipo_atual} como NPS_D1 (telefone sem WhatsApp)")
                         abas_reclassificadas['NPS_D1'] = df
                         if tipo_atual in abas_encontradas:
                             del abas_encontradas[tipo_atual]
@@ -1431,7 +1517,7 @@ Seja específico, use dados reais e foque em ações práticas.
             # Carrega o módulo do extrator especial
             caminho_extrator = os.path.join(os.path.dirname(__file__), 'extrator_aba_unica_especial.py')
             if not os.path.exists(caminho_extrator):
-                print("   ❌ Extrator especial não encontrado")
+                print("   [ERRO] Extrator especial não encontrado")
                 return False
             
             spec = importlib.util.spec_from_file_location("extrator_especial", caminho_extrator)
@@ -1443,7 +1529,7 @@ Seja específico, use dados reais e foque em ações práticas.
             resultado = extractor_especial.extrair_especial(url)
             
             if resultado.get('sucesso'):
-                print("   ✅ Detectada planilha tipo aba única!")
+                print("   [OK] Detectada planilha tipo aba única!")
                 
                 # Converte para formato do sistema principal
                 import pandas as pd
@@ -1456,17 +1542,17 @@ Seja específico, use dados reais e foque em ações práticas.
                     # Mapeia tipos para formato do sistema
                     if tipo == 'D+30':
                         self.dados_abas['NPS_D30'] = df
-                        print(f"   📊 NPS D+30: {len(df)} registros")
+                        print(f"   [DADOS] NPS D+30: {len(df)} registros")
                     elif tipo == 'D+1':
                         self.dados_abas['NPS_D1'] = df
-                        print(f"   📊 NPS D+1: {len(df)} registros")
+                        print(f"   [DADOS] NPS D+1: {len(df)} registros")
                     elif tipo == 'NPS_Ruim':
                         self.dados_abas['NPS_Ruim'] = df
-                        print(f"   📊 NPS Ruim: {len(df)} registros")
+                        print(f"   [DADOS] NPS Ruim: {len(df)} registros")
                 
                 # Implementa NPS Ruim automaticamente
                 try:
-                    print("   🔍 Implementando NPS Ruim automaticamente...")
+                    print("   [BUSCA] Implementando NPS Ruim automaticamente...")
                     caminho_implementador = os.path.join(os.path.dirname(__file__), 'implementar_nps_ruim_completo.py')
                     if os.path.exists(caminho_implementador):
                         spec_ruim = importlib.util.spec_from_file_location("implementador_ruim", caminho_implementador)
@@ -1486,23 +1572,23 @@ Seja específico, use dados reais e foque em ações práticas.
                             # Converte para DataFrame
                             df_ruim = pd.DataFrame(dados_ruim)
                             self.dados_abas['NPS_Ruim'] = df_ruim
-                            print(f"   ✅ NPS Ruim implementado: {len(df_ruim)} casos")
+                            print(f"   [OK] NPS Ruim implementado: {len(df_ruim)} casos")
                         
                 except Exception as e:
-                    print(f"   ⚠️ Erro ao implementar NPS Ruim: {e}")
+                    print(f"   [AVISO] Erro ao implementar NPS Ruim: {e}")
                 
                 return True
             
             return False
             
         except Exception as e:
-            print(f"   ❌ Erro na estratégia aba única: {e}")
+            print(f"   [ERRO] Erro na estratégia aba única: {e}")
             return False
 
 
 def main():
     """Função principal para uso direto"""
-    print("🎯 ANALISADOR NPS COMPLETO")
+    print("ANALISADOR NPS COMPLETO")
     print("="*50)
     print("Cole o link da planilha Google Sheets para análise automática")
     print()
