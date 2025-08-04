@@ -1,29 +1,19 @@
-# Sistema NPS Automation - Dependências para Vercel
-# Versões compatíveis com ambiente serverless
+# Sistema NPS Automation - Dependências mínimas para Vercel
+# Otimizado para limite de 250MB do serverless
 
 # HTTP Requests
-requests==2.31.0
+requests
 
 # OpenAI API
-openai==1.3.0
+openai
 
 # Configuração
-python-dotenv==1.0.0
+python-dotenv
 
-# Documentos
-python-docx==0.8.11
+# Documentos (versão mais leve)
+python-docx
 
-# Planilhas
-openpyxl==3.1.2
-pandas==2.0.3
-
-# Removidas dependências problemáticas no Vercel:
-# - flask (não necessário para serverless functions)
-# - flask-cors (não necessário para serverless functions)
-# - weasyprint (dependências C++ complexas)
-# - pywin32 (Windows específico)
-# - colorama (terminal específico)
-
-# Cache e performance
-lru-dict==1.2.0
-cachetools==5.3.2
+# Removidas dependências pesadas:
+# - pandas (muito pesado ~100MB) - substituído por CSV nativo
+# - openpyxl (pesado) - usar CSV direto do Google Sheets
+# - lru-dict, cachetools (desnecessário em serverless)
