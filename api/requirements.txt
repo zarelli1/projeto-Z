@@ -1,1 +1,2 @@
-requests==2.31.0
+# Sistema NPS - sem dependências externas
+# Usando apenas bibliotecas built-in do Python

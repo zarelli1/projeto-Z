@@ -1,15 +1,12 @@
 import json
-import csv
-import requests
 import re
-from datetime import datetime
+import csv
 from io import StringIO
-import os
 
 def handler(request):
-    """Vercel serverless function simplificada para análise de dados"""
+    """Analyze endpoint - análise básica de planilhas"""
     
-    # Handle CORS
+    # Handle CORS preflight
     if request.method == 'OPTIONS':
         return {
             'statusCode': 200,
@@ -24,24 +21,23 @@ def handler(request):
     try:
         # Parse request body
         if hasattr(request, 'get_json'):
-            data = request.get_json()
-        else:
+            data = request.get_json() or {}
+        elif hasattr(request, 'body'):
             data = json.loads(request.body) if request.body else {}
+        else:
+            data = {}
         
         sheets_url = data.get('sheets_url', '')
-        loja_nome = data.get('loja_nome', 'Análise Universal')
+        loja_nome = data.get('loja_nome', 'Análise NPS')
         
         if not sheets_url:
             return {
                 'statusCode': 400,
                 'headers': {
-                    'Access-Control-Allow-Origin': '*',
                     'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*',
                 },
-                'body': json.dumps({
-                    'success': False,
-                    'error': 'URL da planilha é obrigatória'
-                })
+                'body': json.dumps({'success': False, 'error': 'URL da planilha é obrigatória'})
             }
         
         # Extrai ID da planilha
@@ -50,174 +46,128 @@ def handler(request):
             return {
                 'statusCode': 400,
                 'headers': {
-                    'Access-Control-Allow-Origin': '*',
                     'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*',
                 },
-                'body': json.dumps({
-                    'success': False,
-                    'error': 'ID da planilha não encontrado na URL'
-                })
+                'body': json.dumps({'success': False, 'error': 'ID da planilha não encontrado'})
             }
         
         sheet_id = sheet_id_match.group(1)
         
-        # Baixa dados CSV da primeira aba
-        csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid=0"
-        response = requests.get(csv_url, timeout=30)
-        
-        if response.status_code != 200:
-            return {
-                'statusCode': 400,
-                'headers': {
-                    'Access-Control-Allow-Origin': '*',
-                    'Content-Type': 'application/json',
-                },
-                'body': json.dumps({
-                    'success': False,
-                    'error': 'Planilha não está pública ou não existe'
-                })
-            }
-        
-        # Processa CSV
-        csv_data = StringIO(response.text)
-        reader = csv.DictReader(csv_data)
-        dados = list(reader)
-        
-        if not dados:
-            return {
-                'statusCode': 400,
-                'headers': {
-                    'Access-Control-Allow-Origin': '*',
-                    'Content-Type': 'application/json',
-                },
-                'body': json.dumps({
-                    'success': False,
-                    'error': 'Nenhum dado encontrado na planilha'
-                })
-            }
-        
-        # Análise básica
-        total_registros = len(dados)
-        
-        # Procura coluna de avaliação
-        col_avaliacao = None
-        for col in dados[0].keys():
-            if any(palavra in col.lower() for palavra in ['avaliacao', 'avaliação', 'nota', 'score', 'rating']):
-                col_avaliacao = col
-                break
-        
-        nps_score = 0
-        avg_rating = 0
-        
-        if col_avaliacao:
-            avaliacoes = []
-            for row in dados:
-                try:
-                    val = float(row[col_avaliacao])
-                    if 0 <= val <= 10:
-                        avaliacoes.append(val)
-                except (ValueError, TypeError):
-                    continue
-            
-            if avaliacoes:
-                avg_rating = sum(avaliacoes) / len(avaliacoes)
-                promotores = sum(1 for x in avaliacoes if x >= 9)
-                detratores = sum(1 for x in avaliacoes if x <= 6)
-                nps_score = ((promotores - detratores) / len(avaliacoes)) * 100
-        
-        # Análise com OpenAI
-        relatorio_texto = ""
+        # Baixa dados da planilha
         try:
-            from openai import OpenAI
-            api_key = os.environ.get('OPENAI_API_KEY')
+            import urllib.request
             
-            if api_key:
-                client = OpenAI(api_key=api_key)
+            csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid=0"
+            
+            with urllib.request.urlopen(csv_url, timeout=15) as response:
+                csv_content = response.read().decode('utf-8')
                 
-                # Preparar dados para IA
-                resumo_dados = f"""
-                Dados da análise NPS:
-                - Loja: {loja_nome}
-                - Total de registros: {total_registros}
-                - NPS Score: {nps_score:.1f}%
-                - Avaliação média: {avg_rating:.1f}/10
-                - Colunas encontradas: {list(dados[0].keys()) if dados else []}
-                """
+                if response.status != 200 or len(csv_content) < 50:
+                    return {
+                        'statusCode': 400,
+                        'headers': {
+                            'Content-Type': 'application/json',
+                            'Access-Control-Allow-Origin': '*',
+                        },
+                        'body': json.dumps({'success': False, 'error': 'Planilha não está pública ou vazia'})
+                    }
                 
-                response = client.chat.completions.create(
-                    model="gpt-4o-mini",  # Modelo mais barato
-                    messages=[
-                        {"role": "system", "content": "Você é um analista de NPS especializado. Gere um relatório profissional em português com insights e recomendações."},
-                        {"role": "user", "content": f"Analise estes dados de NPS e gere um relatório: {resumo_dados}"}
-                    ],
-                    max_tokens=800,
-                    temperature=0.7
-                )
+                # Processa CSV
+                csv_data = StringIO(csv_content)
+                reader = csv.DictReader(csv_data)
+                dados = list(reader)
                 
-                relatorio_texto = response.choices[0].message.content
-            else:
-                relatorio_texto = f"""
-# Relatório de Análise NPS - {loja_nome}
+                if not dados:
+                    return {
+                        'statusCode': 400,
+                        'headers': {
+                            'Content-Type': 'application/json',
+                            'Access-Control-Allow-Origin': '*',
+                        },
+                        'body': json.dumps({'success': False, 'error': 'Nenhum dado encontrado na planilha'})
+                    }
+                
+                # Análise básica
+                total_registros = len(dados)
+                
+                # Procura coluna de avaliação
+                col_avaliacao = None
+                for col in dados[0].keys():
+                    if any(palavra in col.lower() for palavra in ['avaliacao', 'avaliação', 'nota', 'score', 'rating']):
+                        col_avaliacao = col
+                        break
+                
+                nps_score = 0
+                avg_rating = 0
+                
+                if col_avaliacao:
+                    avaliacoes = []
+                    for row in dados:
+                        try:
+                            val = float(row[col_avaliacao])
+                            if 0 <= val <= 10:
+                                avaliacoes.append(val)
+                        except (ValueError, TypeError):
+                            continue
+                    
+                    if avaliacoes:
+                        avg_rating = sum(avaliacoes) / len(avaliacoes)
+                        promotores = sum(1 for x in avaliacoes if x >= 9)
+                        detratores = sum(1 for x in avaliacoes if x <= 6)
+                        nps_score = ((promotores - detratores) / len(avaliacoes)) * 100
+                
+                # Gera relatório básico
+                relatorio = f"""# Relatório NPS - {loja_nome}
 
-## Métricas Gerais
+## Métricas Principais
 - **Total de registros**: {total_registros}
 - **NPS Score**: {nps_score:.1f}%
 - **Avaliação média**: {avg_rating:.1f}/10
 
-## Resumo
-Análise realizada com {total_registros} registros da planilha.
-Score NPS de {nps_score:.1f}% indica {"excelente" if nps_score > 70 else "bom" if nps_score > 50 else "regular"} desempenho.
+## Análise Resumida
+{"Excelente desempenho!" if nps_score > 70 else "Bom desempenho!" if nps_score > 50 else "Desempenho regular - há espaço para melhorias"}
 
-Relatório gerado em {datetime.now().strftime('%d/%m/%Y às %H:%M')}.
-                """
+Análise realizada com {total_registros} registros da planilha.
+Data: 2025-01-04
+"""
+                
+                return {
+                    'statusCode': 200,
+                    'headers': {
+                        'Content-Type': 'application/json',
+                        'Access-Control-Allow-Origin': '*',
+                    },
+                    'body': json.dumps({
+                        'success': True,
+                        'message': 'Análise concluída com sucesso!',
+                        'dados': {
+                            'total_registros': total_registros,
+                            'nps_score': round(nps_score, 1),
+                            'avg_rating': round(avg_rating, 1),
+                            'loja_nome': loja_nome
+                        },
+                        'relatorio': relatorio,
+                        'tipo_relatorio': 'Análise NPS Básica'
+                    })
+                }
+                
         except Exception as e:
-            # Fallback se IA falhar
-            relatorio_texto = f"""
-# Relatório de Análise NPS - {loja_nome}
-
-## Métricas Gerais
-- **Total de registros**: {total_registros}
-- **NPS Score**: {nps_score:.1f}%
-- **Avaliação média**: {avg_rating:.1f}/10
-
-## Resumo
-Análise realizada com {total_registros} registros da planilha.
-Score NPS de {nps_score:.1f}% indica {"excelente" if nps_score > 70 else "bom" if nps_score > 50 else "regular"} desempenho.
-
-Relatório gerado em {datetime.now().strftime('%d/%m/%Y às %H:%M')}.
-
-*Nota: Análise IA temporariamente indisponível.*
-            """
-        
-        return {
-            'statusCode': 200,
-            'headers': {
-                'Access-Control-Allow-Origin': '*',
-                'Content-Type': 'application/json',
-            },
-            'body': json.dumps({
-                'success': True,
-                'message': 'Análise concluída com sucesso!',
-                'dados': {
-                    'total_registros': total_registros,
-                    'nps_score': round(nps_score, 1),
-                    'avg_rating': round(avg_rating, 1),
-                    'loja_nome': loja_nome
+            return {
+                'statusCode': 500,
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*',
                 },
-                'relatorio': relatorio_texto,
-                'tipo_relatorio': 'Análise NPS - Versão Simplificada'
-            })
-        }
-        
+                'body': json.dumps({'success': False, 'error': f'Erro ao processar planilha: {str(e)}'})
+            }
+            
     except Exception as e:
         return {
             'statusCode': 500,
             'headers': {
-                'Access-Control-Allow-Origin': '*',
                 'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
             },
-            'body': json.dumps({
-                'success': False,
-                'error': f'Erro interno: {str(e)}'
-            })
+            'body': json.dumps({'success': False, 'error': f'Erro interno: {str(e)}'})
         }
