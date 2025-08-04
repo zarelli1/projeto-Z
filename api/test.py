@@ -2,7 +2,7 @@ import json
 import re
 import requests
 
-def handler(request, context):
+def handler(request):
     """Vercel serverless function para teste de conexão"""
     
     # Handle CORS
