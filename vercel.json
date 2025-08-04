@@ -1,9 +1,10 @@
 {
   "functions": {
-    "api/*.py": {
+    "api/health.py": {
+      "runtime": "@vercel/python"
+    },
+    "api/test-connection.py": {
       "runtime": "@vercel/python"
     }
-  },
-  "buildCommand": null,
-  "framework": null
+  }
 }

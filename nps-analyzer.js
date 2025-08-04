@@ -364,7 +364,7 @@ class NPSAnalyzer {
         this.elements.testUrl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testando...';
 
         try {
-            const response = await fetch(`${this.apiBaseUrl}/api/test`, {
+            const response = await fetch(`${this.apiBaseUrl}/api/test-connection`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ sheets_url: url }),

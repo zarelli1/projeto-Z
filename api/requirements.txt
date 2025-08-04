@@ -1,4 +1,1 @@
-requests
-openai
-python-dotenv
-python-docx
+requests==2.31.0
