@@ -330,7 +330,6 @@ class NPSAnalyzer {
         const isValid = url === '' || /^https:\/\/docs\.google\.com\/spreadsheets\/d\/[a-zA-Z0-9-_]+/.test(url);
         
         this.elements.sheetsUrl.classList.toggle('invalid', !isValid);
-        this.validateForm();
         
         return isValid;
     }
@@ -364,7 +363,7 @@ class NPSAnalyzer {
         this.elements.testUrl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testando...';
 
         try {
-            const response = await fetch(`${this.apiBaseUrl}/api/test-connection`, {
+            const response = await fetch(`${this.apiBaseUrl}/api/test`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ sheets_url: url }),

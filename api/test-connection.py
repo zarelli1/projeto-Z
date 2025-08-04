@@ -1,7 +1,9 @@
+from http.server import BaseHTTPRequestHandler
 import json
 import re
+import requests
 
-def handler(event, context):
+class handler(BaseHTTPRequestHandler):
     """Teste de conexão com Google Sheets - versão simplificada"""
     
     # Handle CORS preflight
