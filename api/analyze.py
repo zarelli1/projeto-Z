@@ -14,7 +14,7 @@ try:
 except ImportError:
     pass
 
-def handler(request):
+def handler(request, context):
     """Vercel serverless function para análise de dados"""
     
     # Handle CORS

@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
 
-def handler(request):
+def handler(request, context):
     """Vercel serverless function para health check"""
     
     # Handle CORS
