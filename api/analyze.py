@@ -125,8 +125,38 @@ def handler(request):
                 detratores = sum(1 for x in avaliacoes if x <= 6)
                 nps_score = ((promotores - detratores) / len(avaliacoes)) * 100
         
-        # Análise simples com OpenAI (se disponível)
-        relatorio_texto = f"""
+        # Análise com OpenAI
+        relatorio_texto = ""
+        try:
+            from openai import OpenAI
+            api_key = os.environ.get('OPENAI_API_KEY')
+            
+            if api_key:
+                client = OpenAI(api_key=api_key)
+                
+                # Preparar dados para IA
+                resumo_dados = f"""
+                Dados da análise NPS:
+                - Loja: {loja_nome}
+                - Total de registros: {total_registros}
+                - NPS Score: {nps_score:.1f}%
+                - Avaliação média: {avg_rating:.1f}/10
+                - Colunas encontradas: {list(dados[0].keys()) if dados else []}
+                """
+                
+                response = client.chat.completions.create(
+                    model="gpt-4o-mini",  # Modelo mais barato
+                    messages=[
+                        {"role": "system", "content": "Você é um analista de NPS especializado. Gere um relatório profissional em português com insights e recomendações."},
+                        {"role": "user", "content": f"Analise estes dados de NPS e gere um relatório: {resumo_dados}"}
+                    ],
+                    max_tokens=800,
+                    temperature=0.7
+                )
+                
+                relatorio_texto = response.choices[0].message.content
+            else:
+                relatorio_texto = f"""
 # Relatório de Análise NPS - {loja_nome}
 
 ## Métricas Gerais
@@ -139,7 +169,25 @@ Análise realizada com {total_registros} registros da planilha.
 Score NPS de {nps_score:.1f}% indica {"excelente" if nps_score > 70 else "bom" if nps_score > 50 else "regular"} desempenho.
 
 Relatório gerado em {datetime.now().strftime('%d/%m/%Y às %H:%M')}.
-        """
+                """
+        except Exception as e:
+            # Fallback se IA falhar
+            relatorio_texto = f"""
+# Relatório de Análise NPS - {loja_nome}
+
+## Métricas Gerais
+- **Total de registros**: {total_registros}
+- **NPS Score**: {nps_score:.1f}%
+- **Avaliação média**: {avg_rating:.1f}/10
+
+## Resumo
+Análise realizada com {total_registros} registros da planilha.
+Score NPS de {nps_score:.1f}% indica {"excelente" if nps_score > 70 else "bom" if nps_score > 50 else "regular"} desempenho.
+
+Relatório gerado em {datetime.now().strftime('%d/%m/%Y às %H:%M')}.
+
+*Nota: Análise IA temporariamente indisponível.*
+            """
         
         return {
             'statusCode': 200,
