@@ -1,1 +1,9 @@
-{}
+{
+  "functions": {
+    "api/*.py": {
+      "runtime": "@vercel/python"
+    }
+  },
+  "buildCommand": null,
+  "framework": null
+}
