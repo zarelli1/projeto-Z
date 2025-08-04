@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DashBot - Análise Profissional</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-chart-line"></i>
+                    <h1>DashBot</h1>
+                </div>
+                <div class="server-status" id="server-status">
+                    <span class="status-indicator" id="status-indicator"></span>
+                    <span class="status-text" id="status-text">Verificando...</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+        <div class="container">
+            
+            <!-- Step Indicator -->
+            <div class="steps-indicator">
+                <div class="step active" data-step="1">
+                    <div class="step-number">1</div>
+                    <div class="step-label">Dados</div>
+                </div>
+                <div class="step" data-step="2">
+                    <div class="step-number">2</div>
+                    <div class="step-label">Processamento</div>
+                </div>
+                <div class="step" data-step="3">
+                    <div class="step-number">3</div>
+                    <div class="step-label">Resultado</div>
+                </div>
+            </div>
+
+            <!-- Step 1: Input Form -->
+            <section class="step-content active" id="step-1">
+                <div class="card">
+                    <div class="card-header">
+                        <h2><i class="fas fa-upload"></i> Configuração da Análise</h2>
+                        <p>Configure os dados para análise do NPS</p>
+                    </div>
+                    <div class="card-body">
+                        
+                        <!-- Input Method Selection -->
+                        <div class="input-method-selector">
+                            <button class="method-btn active" data-method="url">
+                                <i class="fab fa-google"></i>
+                                <span>Google Sheets</span>
+                            </button>
+                            <button class="method-btn" data-method="file">
+                                <i class="fas fa-file-csv"></i>
+                                <span>Upload CSV</span>
+                            </button>
+                        </div>
+
+                        <!-- Project Name -->
+                        <div class="form-group">
+                            <label for="project-name">Nome do Projeto</label>
+                            <input type="text" id="project-name" placeholder="Ex: Análise Q4 2025, Projeto Alpha..." value="Análise NPS">
+                            <small>Este nome aparecerá no relatório final</small>
+                        </div>
+
+                        <!-- Google Sheets URL Method -->
+                        <div class="input-method" id="url-method">
+                            <div class="form-group">
+                                <label for="sheets-url">URL do Google Sheets</label>
+                                <input type="url" id="sheets-url" placeholder="https://docs.google.com/spreadsheets/d/...">
+                                <small>
+                                    <i class="fas fa-info-circle"></i>
+                                    Certifique-se de que a planilha está pública (compartilhada com "qualquer pessoa com o link")
+                                </small>
+                            </div>
+                            
+                            <!-- URL Test Button -->
+                            <button type="button" class="btn-secondary" id="test-url">
+                                <i class="fas fa-check-circle"></i>
+                                Testar Conexão
+                            </button>
+                        </div>
+
+                        <!-- File Upload Method -->
+                        <div class="input-method hidden" id="file-method">
+                            <div class="file-upload-area" id="file-upload">
+                                <div class="upload-content">
+                                    <i class="fas fa-cloud-upload-alt"></i>
+                                    <h3>Clique para selecionar ou arraste seu arquivo CSV</h3>
+                                    <p>Arquivo CSV com dados de NPS (máximo 10MB)</p>
+                                    <input type="file" id="file-input" accept=".csv" hidden>
+                                </div>
+                                <div class="file-info hidden" id="file-info">
+                                    <i class="fas fa-file-csv"></i>
+                                    <span class="file-name"></span>
+                                    <span class="file-size"></span>
+                                    <button type="button" class="remove-file" id="remove-file">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Advanced Options -->
+                        <div class="advanced-options">
+                            <button type="button" class="advanced-toggle" id="advanced-toggle">
+                                <i class="fas fa-cog"></i>
+                                Opções Avançadas
+                                <i class="fas fa-chevron-down"></i>
+                            </button>
+                            <div class="advanced-content hidden" id="advanced-content">
+                                
+                                <!-- Date Filter -->
+                                <div class="form-group">
+                                    <label>
+                                        <input type="checkbox" id="enable-date-filter">
+                                        Filtrar por período
+                                    </label>
+                                </div>
+                                <div class="date-filter hidden" id="date-filter">
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="date-start">Data Início</label>
+                                            <input type="date" id="date-start">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="date-end">Data Fim</label>
+                                            <input type="date" id="date-end">
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="form-actions">
+                            <button type="button" class="btn-primary" id="start-analysis">
+                                <i class="fas fa-play"></i>
+                                Iniciar Análise
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+            </section>
+
+            <!-- Step 2: Processing -->
+            <section class="step-content" id="step-2">
+                <div class="card">
+                    <div class="card-header">
+                        <h2><i class="fas fa-cogs"></i> Processamento em Andamento</h2>
+                        <p>Aguarde enquanto processamos seus dados</p>
+                    </div>
+                    <div class="card-body">
+                        
+                        <!-- Progress Bar -->
+                        <div class="progress-container">
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="progress-fill"></div>
+                            </div>
+                            <div class="progress-text" id="progress-text">Iniciando...</div>
+                            <div class="progress-percentage" id="progress-percentage">0%</div>
+                        </div>
+
+                        <!-- Processing Steps -->
+                        <div class="processing-steps">
+                            <div class="processing-step" id="step-extract">
+                                <div class="step-icon">
+                                    <i class="fas fa-download"></i>
+                                </div>
+                                <div class="step-info">
+                                    <h4>Extração de Dados</h4>
+                                    <p>Coletando informações da fonte</p>
+                                </div>
+                                <div class="step-status">
+                                    <i class="fas fa-clock"></i>
+                                </div>
+                            </div>
+                            
+                            <div class="processing-step" id="step-analyze">
+                                <div class="step-icon">
+                                    <i class="fas fa-brain"></i>
+                                </div>
+                                <div class="step-info">
+                                    <h4>Análise Inteligente</h4>
+                                    <p>Processamento com IA</p>
+                                </div>
+                                <div class="step-status">
+                                    <i class="fas fa-clock"></i>
+                                </div>
+                            </div>
+                            
+                            <div class="processing-step" id="step-generate">
+                                <div class="step-icon">
+                                    <i class="fas fa-file-word"></i>
+                                </div>
+                                <div class="step-info">
+                                    <h4>Geração do Relatório</h4>
+                                    <p>Criando documento final</p>
+                                </div>
+                                <div class="step-status">
+                                    <i class="fas fa-clock"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Cancel Button -->
+                        <div class="form-actions">
+                            <button type="button" class="btn-secondary" id="cancel-analysis">
+                                <i class="fas fa-stop"></i>
+                                Cancelar Análise
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+            </section>
+
+            <!-- Step 3: Results -->
+            <section class="step-content" id="step-3">
+                <div class="card">
+                    <div class="card-header">
+                        <h2><i class="fas fa-chart-bar"></i> Resultado da Análise</h2>
+                        <p>Sua análise foi concluída com sucesso</p>
+                    </div>
+                    <div class="card-body">
+                        
+                        <!-- Summary Metrics -->
+                        <div class="metrics-grid">
+                            <div class="metric-card">
+                                <div class="metric-icon nps">
+                                    <i class="fas fa-chart-line"></i>
+                                </div>
+                                <div class="metric-info">
+                                    <h4>NPS Score</h4>
+                                    <span class="metric-value" id="nps-score">--</span>
+                                </div>
+                            </div>
+                            
+                            <div class="metric-card">
+                                <div class="metric-icon responses">
+                                    <i class="fas fa-users"></i>
+                                </div>
+                                <div class="metric-info">
+                                    <h4>Total Respostas</h4>
+                                    <span class="metric-value" id="total-responses">--</span>
+                                </div>
+                            </div>
+                            
+                            <div class="metric-card">
+                                <div class="metric-icon rating">
+                                    <i class="fas fa-star"></i>
+                                </div>
+                                <div class="metric-info">
+                                    <h4>Avaliação Média</h4>
+                                    <span class="metric-value" id="avg-rating">--</span>
+                                </div>
+                            </div>
+                            
+                            <div class="metric-card">
+                                <div class="metric-icon team">
+                                    <i class="fas fa-user-tie"></i>
+                                </div>
+                                <div class="metric-info">
+                                    <h4>Vendedores</h4>
+                                    <span class="metric-value" id="total-sellers">--</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Report Info -->
+                        <div class="report-info">
+                            <div class="report-details">
+                                <h4>Documento Gerado</h4>
+                                <div class="file-info">
+                                    <i class="fas fa-file-word"></i>
+                                    <span class="file-name" id="report-filename">relatorio_nps.docx</span>
+                                    <span class="file-type">Documento DOC</span>
+                                </div>
+                                <p class="report-description" id="report-description">
+                                    Relatório completo com análise detalhada, métricas e recomendações baseadas em IA.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="form-actions">
+                            <button type="button" class="btn-primary" id="download-report">
+                                <i class="fas fa-download"></i>
+                                Baixar Relatório
+                            </button>
+                            <button type="button" class="btn-secondary" id="new-analysis">
+                                <i class="fas fa-plus"></i>
+                                Nova Análise
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- Error/Success Messages -->
+    <div class="message-container" id="message-container"></div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay hidden" id="loading-overlay">
+        <div class="loading-spinner">
+            <i class="fas fa-cog fa-spin"></i>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="nps-analyzer.js"></script>
+</body>
+</html>
