@@ -5,5 +5,5 @@ def handler(request):
             'Content-Type': 'application/json',
             'Access-Control-Allow-Origin': '*',
         },
-        'body': '{"status": "OK", "message": "API funcionando!", "version": "simple"}'
+        'body': '{"success": true, "message": "Teste OK", "sheet_id": "test123"}'
     }
