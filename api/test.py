@@ -2,10 +2,15 @@ import json
 import re
 
 def handler(request):
-    """Test connection endpoint - formato simples para Vercel"""
+    """
+    CORREÇÃO: Test connection endpoint com tratamento robusto de request
+    Formato compatível com Vercel serverless functions
+    """
     
-    # Handle CORS preflight
-    if request.method == 'OPTIONS':
+    try:
+        # Handle CORS preflight
+        method = getattr(request, 'method', 'POST')
+        if method == 'OPTIONS':
         return {
             'statusCode': 200,
             'headers': {
@@ -16,14 +21,32 @@ def handler(request):
             'body': ''
         }
     
-    try:
-        # Parse request body
-        if hasattr(request, 'get_json'):
-            data = request.get_json() or {}
-        elif hasattr(request, 'body'):
-            data = json.loads(request.body) if request.body else {}
-        else:
-            data = {}
+        # CORREÇÃO: Parse request body com múltiplos fallbacks
+        data = {}
+        try:
+            if hasattr(request, 'get_json') and callable(request.get_json):
+                data = request.get_json() or {}
+            elif hasattr(request, 'json') and callable(request.json):
+                data = request.json() or {}
+            elif hasattr(request, 'body'):
+                body_content = request.body
+                if isinstance(body_content, bytes):
+                    body_content = body_content.decode('utf-8')
+                if body_content:
+                    data = json.loads(body_content)
+            elif hasattr(request, 'data'):
+                if request.data:
+                    data = json.loads(request.data)
+        except (json.JSONDecodeError, AttributeError, TypeError) as parse_error:
+            # CORREÇÃO: Se não conseguir fazer parse, retorna erro claro
+            return {
+                'statusCode': 400,
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*',
+                },
+                'body': json.dumps({'success': False, 'error': f'JSON inválido: {str(parse_error)}'})
+            }
         
         sheets_url = data.get('sheets_url', '')
         
@@ -117,11 +140,16 @@ def handler(request):
             }
             
     except Exception as e:
+        # CORREÇÃO: Tratamento de erro final com logging detalhado
         return {
             'statusCode': 500,
             'headers': {
                 'Content-Type': 'application/json',
                 'Access-Control-Allow-Origin': '*',
             },
-            'body': json.dumps({'success': False, 'error': f'Erro interno: {str(e)}'})
+            'body': json.dumps({
+                'success': False, 
+                'error': f'Erro interno do servidor: {str(e)}',
+                'type': 'server_error'
+            })
         }

@@ -324,6 +324,7 @@ class NPSAnalyzer {
 
     /**
      * Validação da URL do Google Sheets
+     * CORREÇÃO: Usa setTimeout para quebrar a recursão infinita
      */
     validateSheetsUrl() {
         const url = this.elements.sheetsUrl.value.trim();
@@ -331,17 +332,24 @@ class NPSAnalyzer {
         
         this.elements.sheetsUrl.classList.toggle('invalid', !isValid);
         
+        // CORREÇÃO: Chama validateForm de forma assíncrona para evitar stack overflow
+        setTimeout(() => this.validateForm(), 0);
+        
         return isValid;
     }
 
     /**
      * Validação geral do formulário
+     * CORREÇÃO: Removida chamada recursiva para validateSheetsUrl() para evitar loop infinito
      */
     validateForm() {
         const projectName = this.elements.projectName.value.trim();
         const hasUrl = this.elements.sheetsUrl.value.trim() !== '';
         const hasFile = this.selectedFile !== null;
-        const isUrlValid = this.validateSheetsUrl();
+        
+        // CORREÇÃO: Validação de URL inline para evitar recursão
+        const url = this.elements.sheetsUrl.value.trim();
+        const isUrlValid = url === '' || /^https:\/\/docs\.google\.com\/spreadsheets\/d\/[a-zA-Z0-9-_]+/.test(url);
         
         const isUrlMethod = this.elements.urlMethod.classList.contains('hidden') === false;
         const isValid = projectName && ((isUrlMethod && hasUrl && isUrlValid) || (!isUrlMethod && hasFile));
@@ -370,15 +378,28 @@ class NPSAnalyzer {
                 signal: AbortSignal.timeout(this.timeouts.test)
             });
 
-            const data = await response.json();
+            // CORREÇÃO: Verificar status da resposta antes de tentar fazer parse do JSON
+            if (!response.ok) {
+                throw new Error(`Erro do servidor: ${response.status} ${response.statusText}`);
+            }
+
+            let data;
+            try {
+                // CORREÇÃO: Proteção contra JSON malformado
+                data = await response.json();
+            } catch (jsonError) {
+                console.error('[API Error] Resposta não é JSON válido:', jsonError);
+                throw new Error('Resposta inválida do servidor');
+            }
             
             if (data.success) {
-                this.showMessage(`Conexão OK! ${data.registros} registros encontrados`, 'success');
+                this.showMessage(`Conexão OK! ${data.message || 'Planilha acessível'}`, 'success');
             } else {
                 this.showMessage(`Erro: ${data.error}`, 'error');
             }
         } catch (error) {
-            this.showMessage('Erro na conexão', 'error');
+            console.error('[Test Connection] Erro completo:', error);
+            this.showMessage(`Erro na conexão: ${error.message}`, 'error');
         } finally {
             this.elements.testUrl.disabled = false;
             this.elements.testUrl.innerHTML = '<i class="fas fa-check-circle"></i> Testar Conexão';
@@ -468,9 +489,21 @@ class NPSAnalyzer {
         // Progress simulation
         this.simulateProgress();
 
-        const result = await response.json();
-        
+        // CORREÇÃO: Verificar status da resposta antes de tentar fazer parse do JSON
         if (!response.ok) {
+            throw new Error(`Erro do servidor: ${response.status} ${response.statusText}`);
+        }
+
+        let result;
+        try {
+            // CORREÇÃO: Proteção contra JSON malformado na análise
+            result = await response.json();
+        } catch (jsonError) {
+            console.error('[Analysis Error] Resposta não é JSON válido:', jsonError);
+            throw new Error('Resposta inválida do servidor durante análise');
+        }
+        
+        if (!result) {
             throw new Error(result.error || `HTTP ${response.status}`);
         }
 
