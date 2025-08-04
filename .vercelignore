@@ -1,0 +1,54 @@
+# Development files
+venv/
+nps_env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env
+pip-log.txt
+pip-delete-this-directory.txt
+.tox
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Cache
+cache/
+frontend/cache/
+
+# Original Flask server (not needed for Vercel)
+frontend/server.py
+
+# Local environment
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Reports (too large for deployment)
+relatorios/
+
+# Windows specific
+encoding_fix.py
+main.py
+reiniciar_servidor.py

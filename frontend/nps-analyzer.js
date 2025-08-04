@@ -30,15 +30,15 @@ class NPSAnalyzer {
      */
     detectApiUrl() {
         const currentHost = window.location.hostname;
-        const currentPort = window.location.port || 3001;  // Padronizado para 3001
         
         // Se estiver executando localmente, usar localhost
         if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
+            const currentPort = window.location.port || 3001;
             return `http://localhost:${currentPort}`;
         }
         
-        // Para outros casos, usar o host atual
-        return `${window.location.protocol}//${currentHost}:${currentPort}`;
+        // Para Vercel/produção, usar o host atual sem porta
+        return window.location.origin;
     }
 
     /**
