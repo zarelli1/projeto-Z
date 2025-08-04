@@ -3,8 +3,7 @@
   "version": "1.0.0",
   "description": "Sistema NPS com análise IA",
   "scripts": {
-    "build": "echo 'No build needed for static files'"
-  },
-  "dependencies": {},
-  "devDependencies": {}
+    "build": "node build.js",
+    "dev": "echo 'Development mode'"
+  }
 }
